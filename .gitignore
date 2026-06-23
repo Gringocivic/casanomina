@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.npm
+
+# Build outputs
+dist/
+build/
+*.js.map
+
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Data — payslip cache, DB files
+data/
+*.sqlite
+*.db
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/
+
+# TypeScript cache
+tsconfig.tsbuildinfo
+
+# Vite
+.vite/

@@ -1,0 +1,135 @@
+{
+  "$schema": "./rates.schema.json",
+  "config_id": "rates-2026-v1",
+  "year": 2026,
+  "effective_date": "2026-01-01",
+  "currency": "MXN",
+
+  "_comment_minimum_wage": "Daily minimum wage in pesos. CONASAMI raised these on Jan 1, 2026. 'general' applies to most of Mexico; 'northern_border' applies to the 45 municipalities in the Zona Libre de la Frontera Norte (ZLFN).",
+  "minimum_daily_wage_general": 315.04,
+  "minimum_daily_wage_northern_border": 440.87,
+
+  "_comment_uma": "UMA = Unidad de Medida y Actualizacion. Used as the reference for IMSS/INFONAVIT contribution caps and ceilings. INEGI updates this every February 1st. The 2026 value (117.31) takes effect Feb 1, 2026; for January 2026, use the 2025 UMA value (113.14) — see uma_daily_value_jan_2026 below for that transition period.",
+  "uma_daily_value": 117.31,
+  "uma_daily_value_jan_2026": 113.14,
+  "uma_effective_date": "2026-02-01",
+
+  "_comment_sbc": "SBC = Salario Base de Cotizacion (Contribution Base Salary). The integration factor converts the daily wage into the SBC by adding a proportional share of mandatory benefits (aguinaldo, prima vacacional). This factor assumes the legal minimums (15 days aguinaldo, 25% prima vacacional) and 12 vacation days (1st year). For workers with more vacation days due to seniority, the calculator recomputes a worker-specific factor instead of using this default.",
+  "sbc_integration_factor": 1.0493,
+  "sbc_integration_factor_basis": {
+    "_comment": "How 1.0493 is derived for a first-year worker (LFT Art. 84, IMSS Art. 27 LSS): 1 + (aguinaldo_days + vacation_days * prima_vacacional_pct) / 365",
+    "aguinaldo_days": 15,
+    "vacation_days_assumed": 12,
+    "prima_vacacional_pct": 0.25,
+    "formula": "1 + (15 + 12 * 0.25) / 365"
+  },
+
+  "_comment_imss": "IMSS = Instituto Mexicano del Seguro Social. Each branch ('ramo') has separate employer and worker contribution rates, expressed as a percentage of the SBC (or, for some branches, the excess of SBC over 3x UMA). Domestic workers were incorporated into the mandatory IMSS regime starting with a pilot program; rates below mirror the general regime structure used in IMSS's domestic worker pilot (Programa de Afiliacion de Personas Trabajadoras del Hogar).",
+  "imss_rates": {
+    "enfermedad_maternidad": {
+      "_comment": "Sickness & Maternity. 'cuota_fija' is a flat employer fee per UMA. 'excedente' applies only to SBC above 3x UMA, split between employer and worker. 'prestaciones_dinero' and 'gastos_medicos_pensionados' are additional sub-branches.",
+      "cuota_fija_employer_pct_of_uma": 0.204,
+      "excedente_three_uma_employer_pct": 0.011,
+      "excedente_three_uma_worker_pct": 0.004,
+      "prestaciones_dinero_employer_pct": 0.007,
+      "prestaciones_dinero_worker_pct": 0.0025,
+      "gastos_medicos_pensionados_employer_pct": 0.0105,
+      "gastos_medicos_pensionados_worker_pct": 0.00375
+    },
+    "invalidez_vida": {
+      "_comment": "Disability & Life Insurance (IV)",
+      "employer_pct": 0.0175,
+      "worker_pct": 0.00625
+    },
+    "retiro": {
+      "_comment": "Retirement (RCV - Retiro). Employer-only contribution.",
+      "employer_pct": 0.02,
+      "worker_pct": 0
+    },
+    "cesantia_vejez": {
+      "_comment": "Old Age & Unemployment in Old Age (RCV - CV). Rate is progressive based on SBC relative to UMA; this is the base rate for SBC up to 1 UMA. Higher SBC bands use a progressive table not modeled in this simplified config — see docs/CALCULATIONS.md.",
+      "employer_pct": 0.031,
+      "worker_pct": 0.01125
+    },
+    "guarderias_prestaciones_sociales": {
+      "_comment": "Daycare & Social Benefits (CyPS). Employer-only.",
+      "employer_pct": 0.01,
+      "worker_pct": 0
+    },
+    "riesgos_trabajo": {
+      "_comment": "Occupational Risk Insurance (RT). Rate depends on the employer's registered risk class (Clase de Riesgo). Domestic work is generally classified as Clase I (lowest risk) under the IMSS domestic worker pilot. Employer-only.",
+      "employer_pct": 0.0054,
+      "worker_pct": 0,
+      "risk_class": "I"
+    }
+  },
+
+  "_comment_infonavit": "INFONAVIT = Instituto del Fondo Nacional de la Vivienda para los Trabajadores. Housing fund contribution, employer-only, calculated on SBC. As of the domestic worker pilot, INFONAVIT registration is optional but recommended; the calculator includes it so employers can choose to contribute voluntarily.",
+  "infonavit_employer_pct": 0.05,
+
+  "_comment_ceav": "CEAV = Cuota de Empleo y Vivienda para personas trabajadoras del hogar (the simplified, progressive contribution scheme being phased in for domestic worker IMSS registration during 2024-2030, per IMSS's transition agreement with employers). The employer_rate represents the EFFECTIVE combined employer contribution rate as a percentage of SBC during the transition period, increasing annually until reaching the full standard rate in 2030. ADJUST THESE VALUES ANNUALLY based on official IMSS publications for the domestic worker program — the values below are placeholders representing a typical phased step-up and MUST be verified against the current official schedule before production use.",
+  "ceav_schedule": [
+    { "year": 2024, "employer_rate": 0.0500 },
+    { "year": 2025, "employer_rate": 0.0650 },
+    { "year": 2026, "employer_rate": 0.0800 },
+    { "year": 2027, "employer_rate": 0.0950 },
+    { "year": 2028, "employer_rate": 0.1100 },
+    { "year": 2029, "employer_rate": 0.1250 },
+    { "year": 2030, "employer_rate": 0.1400 }
+  ],
+
+  "_comment_vacation": "Vacation days by completed years of service, per LFT Art. 76 as reformed by the 'Vacaciones Dignas' decree (DOF 27-Dec-2022, effective Jan 1, 2023). Year 1 = 12 days (was 6 before the reform). Days increase by 2 each year through year 5 (20 days), then by 2 every 5 years thereafter.",
+  "vacation_accrual_table": [
+    { "year_of_service": 1, "days": 12 },
+    { "year_of_service": 2, "days": 14 },
+    { "year_of_service": 3, "days": 16 },
+    { "year_of_service": 4, "days": 18 },
+    { "year_of_service": 5, "days": 20 },
+    { "year_of_service": 6, "days": 22 },
+    { "year_of_service": 7, "days": 22 },
+    { "year_of_service": 8, "days": 22 },
+    { "year_of_service": 9, "days": 22 },
+    { "year_of_service": 10, "days": 22 },
+    { "year_of_service": 11, "days": 24 },
+    { "year_of_service": 12, "days": 24 },
+    { "year_of_service": 13, "days": 24 },
+    { "year_of_service": 14, "days": 24 },
+    { "year_of_service": 15, "days": 24 },
+    { "year_of_service": 16, "days": 26 },
+    { "year_of_service": 17, "days": 26 },
+    { "year_of_service": 18, "days": 26 },
+    { "year_of_service": 19, "days": 26 },
+    { "year_of_service": 20, "days": 26 },
+    { "year_of_service": 21, "days": 28 }
+  ],
+  "vacation_accrual_rule": {
+    "_comment": "For years_of_service beyond the last table entry, add 2 days for every additional 5 completed years past year 20 (e.g. year 26 -> 30 days). The calculator should extrapolate using this rule if a worker's tenure exceeds the table.",
+    "extrapolation_step_years": 5,
+    "extrapolation_step_days": 2,
+    "table_max_year": 21
+  },
+
+  "_comment_aguinaldo": "Aguinaldo (Christmas bonus), LFT Art. 87. Legal minimum is 15 days of salary, payable by Dec 20 each year, prorated for partial years of service.",
+  "aguinaldo_minimum_days": 15,
+
+  "_comment_prima_vacacional": "Prima Vacacional (vacation premium), LFT Art. 80. Minimum 25% of the salary corresponding to the vacation days taken.",
+  "prima_vacacional_minimum_pct": 0.25,
+
+  "_comment_finiquito_liquidacion": "Severance basics, LFT Arts. 49-50, 162. 'liquidacion' (unjustified dismissal) includes 3 months of SBC plus 20 days per year of service (Art. 50-II/III) on top of the finiquito components (proportional aguinaldo, vacation, prima vacacional, and any outstanding wages). 'finiquito' (voluntary resignation or justified cause) includes only the proportional aguinaldo, vacation, prima vacacional, and outstanding wages — no severance indemnity.",
+  "liquidacion_constitutional_indemnity_months": 3,
+  "liquidacion_seniority_premium_days_per_year": 20,
+  "_comment_seniority_premium_cap": "Prima de antiguedad (LFT Art. 162) is capped at twice the general minimum daily wage when the worker's own salary exceeds that cap.",
+  "seniority_premium_cap_multiplier_of_min_wage": 2,
+  "seniority_premium_days_per_year": 12,
+
+  "_comment_holidays": "Official mandatory rest days for 2026 per LFT Art. 74. 'triple_pay' reflects Art. 75: if a worker works on one of these days, they are owed their regular daily pay (already covered by the weekly/monthly salary) PLUS double pay for the work performed, i.e. triple total for that day.",
+  "mandatory_holidays_2026": [
+    { "date": "2026-01-01", "name": "Año Nuevo (New Year's Day)", "triple_pay": true },
+    { "date": "2026-02-02", "name": "Día de la Constitución (observed, 1st Monday of Feb)", "triple_pay": true },
+    { "date": "2026-03-16", "name": "Natalicio de Benito Juárez (observed, 3rd Monday of Mar)", "triple_pay": true },
+    { "date": "2026-05-01", "name": "Día del Trabajo (Labor Day)", "triple_pay": true },
+    { "date": "2026-09-16", "name": "Día de la Independencia", "triple_pay": true },
+    { "date": "2026-11-16", "name": "Día de la Revolución (observed, 3rd Monday of Nov)", "triple_pay": true },
+    { "date": "2026-12-25", "name": "Navidad (Christmas)", "triple_pay": true }
+  ]
+}

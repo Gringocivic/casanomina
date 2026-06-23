@@ -1,0 +1,127 @@
+{
+  "$schema": "./rates.schema.json",
+  "config_id": "rates-2025-v1",
+  "year": 2025,
+  "effective_date": "2025-01-01",
+  "currency": "MXN",
+
+  "_comment_minimum_wage": "Daily minimum wage in pesos, effective Jan 1, 2025.",
+  "minimum_daily_wage_general": 278.80,
+  "minimum_daily_wage_northern_border": 419.88,
+
+  "_comment_uma": "UMA daily value effective Feb 1, 2025 (per INEGI/DOF). For January 2025, the 2024 UMA value of 108.57 applied.",
+  "uma_daily_value": 113.14,
+  "uma_daily_value_jan_2025": 108.57,
+  "uma_effective_date": "2025-02-01",
+
+  "_comment_sbc": "SBC integration factor for a first-year worker, same formula basis as 2026 (LFT Art. 84, IMSS Art. 27 LSS): 1 + (15 + 12*0.25)/365.",
+  "sbc_integration_factor": 1.0493,
+  "sbc_integration_factor_basis": {
+    "_comment": "1 + (aguinaldo_days + vacation_days * prima_vacacional_pct) / 365",
+    "aguinaldo_days": 15,
+    "vacation_days_assumed": 12,
+    "prima_vacacional_pct": 0.25,
+    "formula": "1 + (15 + 12 * 0.25) / 365"
+  },
+
+  "_comment_imss": "IMSS contribution rates for 2025. Structurally identical to 2026; rates themselves are set by federal law (LSS) and have not changed, only the UMA base they apply to changes year to year.",
+  "imss_rates": {
+    "enfermedad_maternidad": {
+      "cuota_fija_employer_pct_of_uma": 0.204,
+      "excedente_three_uma_employer_pct": 0.011,
+      "excedente_three_uma_worker_pct": 0.004,
+      "prestaciones_dinero_employer_pct": 0.007,
+      "prestaciones_dinero_worker_pct": 0.0025,
+      "gastos_medicos_pensionados_employer_pct": 0.0105,
+      "gastos_medicos_pensionados_worker_pct": 0.00375
+    },
+    "invalidez_vida": {
+      "employer_pct": 0.0175,
+      "worker_pct": 0.00625
+    },
+    "retiro": {
+      "employer_pct": 0.02,
+      "worker_pct": 0
+    },
+    "cesantia_vejez": {
+      "employer_pct": 0.031,
+      "worker_pct": 0.01125
+    },
+    "guarderias_prestaciones_sociales": {
+      "employer_pct": 0.01,
+      "worker_pct": 0
+    },
+    "riesgos_trabajo": {
+      "employer_pct": 0.0054,
+      "worker_pct": 0,
+      "risk_class": "I"
+    }
+  },
+
+  "_comment_infonavit": "INFONAVIT employer contribution rate, unchanged across years.",
+  "infonavit_employer_pct": 0.05,
+
+  "_comment_ceav": "CEAV phased schedule for domestic worker IMSS registration, same projected schedule as in rates.2026.json. VERIFY against official IMSS publications before production use.",
+  "ceav_schedule": [
+    { "year": 2024, "employer_rate": 0.0500 },
+    { "year": 2025, "employer_rate": 0.0650 },
+    { "year": 2026, "employer_rate": 0.0800 },
+    { "year": 2027, "employer_rate": 0.0950 },
+    { "year": 2028, "employer_rate": 0.1100 },
+    { "year": 2029, "employer_rate": 0.1250 },
+    { "year": 2030, "employer_rate": 0.1400 }
+  ],
+
+  "_comment_vacation": "Vacation accrual table per LFT Art. 76 (Vacaciones Dignas reform), unchanged since Jan 1, 2023.",
+  "vacation_accrual_table": [
+    { "year_of_service": 1, "days": 12 },
+    { "year_of_service": 2, "days": 14 },
+    { "year_of_service": 3, "days": 16 },
+    { "year_of_service": 4, "days": 18 },
+    { "year_of_service": 5, "days": 20 },
+    { "year_of_service": 6, "days": 22 },
+    { "year_of_service": 7, "days": 22 },
+    { "year_of_service": 8, "days": 22 },
+    { "year_of_service": 9, "days": 22 },
+    { "year_of_service": 10, "days": 22 },
+    { "year_of_service": 11, "days": 24 },
+    { "year_of_service": 12, "days": 24 },
+    { "year_of_service": 13, "days": 24 },
+    { "year_of_service": 14, "days": 24 },
+    { "year_of_service": 15, "days": 24 },
+    { "year_of_service": 16, "days": 26 },
+    { "year_of_service": 17, "days": 26 },
+    { "year_of_service": 18, "days": 26 },
+    { "year_of_service": 19, "days": 26 },
+    { "year_of_service": 20, "days": 26 },
+    { "year_of_service": 21, "days": 28 }
+  ],
+  "vacation_accrual_rule": {
+    "extrapolation_step_years": 5,
+    "extrapolation_step_days": 2,
+    "table_max_year": 21
+  },
+
+  "_comment_aguinaldo": "Aguinaldo minimum, LFT Art. 87 — statutory minimum unchanged.",
+  "aguinaldo_minimum_days": 15,
+
+  "_comment_prima_vacacional": "Prima Vacacional minimum, LFT Art. 80 — statutory minimum unchanged.",
+  "prima_vacacional_minimum_pct": 0.25,
+
+  "_comment_finiquito_liquidacion": "Severance basics, unchanged across years (LFT Arts. 49-50, 162).",
+  "liquidacion_constitutional_indemnity_months": 3,
+  "liquidacion_seniority_premium_days_per_year": 20,
+  "seniority_premium_cap_multiplier_of_min_wage": 2,
+  "seniority_premium_days_per_year": 12,
+
+  "_comment_holidays": "Official mandatory rest days for 2025 per LFT Art. 74.",
+  "mandatory_holidays_2025": [
+    { "date": "2025-01-01", "name": "Año Nuevo (New Year's Day)", "triple_pay": true },
+    { "date": "2025-02-03", "name": "Día de la Constitución (observed, 1st Monday of Feb)", "triple_pay": true },
+    { "date": "2025-03-17", "name": "Natalicio de Benito Juárez (observed, 3rd Monday of Mar)", "triple_pay": true },
+    { "date": "2025-05-01", "name": "Día del Trabajo (Labor Day)", "triple_pay": true },
+    { "date": "2025-09-16", "name": "Día de la Independencia", "triple_pay": true },
+    { "date": "2025-11-17", "name": "Día de la Revolución (observed, 3rd Monday of Nov)", "triple_pay": true },
+    { "date": "2025-12-25", "name": "Navidad (Christmas)", "triple_pay": true }
+  ]
+}

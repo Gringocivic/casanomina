@@ -1,0 +1,44 @@
+﻿version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: casanomina
+      POSTGRES_PASSWORD: casanomina_dev
+      POSTGRES_DB: casanomina
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casanomina"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://casanomina:casanomina_dev@db:5432/casanomina
+      PORT: "3001"
+      # Clerk secret key — set in a root .env file or export in your shell.
+      # When absent, the API runs in dev-fallback mode (no real auth).
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:-}
+      # Resend transactional email — set in a root .env or shell export.
+      # When absent, invite emails are skipped (non-fatal).
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pg_data:

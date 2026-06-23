@@ -1,0 +1,20 @@
+{
+  "name": "casanomina",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source household payroll & compliance app for domestic workers in Mexico.",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "docker-compose up",
+    "dev:api": "npm -w packages/api run dev",
+    "dev:web": "npm -w packages/web run dev",
+    "test": "npm -w packages/calculator run test",
+    "build": "npm -w packages/calculator run build && npm -w packages/api run build && npm -w packages/web run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

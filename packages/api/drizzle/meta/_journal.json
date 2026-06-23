@@ -1,0 +1,27 @@
+{
+  "version": "6",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1781959461716,
+      "tag": "0000_silly_gorilla_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1782088353092,
+      "tag": "0001_striped_squirrel_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782243118778,
+      "tag": "0002_employer_profile",
+      "breakpoints": true
+    }
+  ]
+}
