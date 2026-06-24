@@ -45,25 +45,32 @@ export function ClaimPage() {
       .catch((e) => setInviteError(e.message));
   }, [token]);
 
-  // Once signed in as a worker with a pending invite → auto-claim
+  // Once signed in with a pending invite → register as worker (if needed) then claim
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !token || !invite) return;
     const role = user?.publicMetadata?.role as string | undefined;
-    if (role !== "worker") return;
+    // Employers can't claim worker invites
+    if (role === "employer") return;
     if (invite.invite_status === "claimed" || claimed) return;
 
     setClaiming(true);
-    api.employments.claim(token)
-      .then(async () => {
+    (async () => {
+      try {
+        // If no role yet, register as worker first
+        if (!role) {
+          await api.auth.registerRole({ role: "worker", full_name: invite.worker_name });
+          await user?.reload();
+        }
+        await api.employments.claim(token);
         sessionStorage.removeItem(PENDING_CLAIM_KEY);
         await user?.reload();
         setClaimed(true);
         setTimeout(() => navigate("/", { replace: true }), 2000);
-      })
-      .catch((e) => {
+      } catch (e: any) {
         setClaimError(e.message);
         setClaiming(false);
-      });
+      }
+    })();
   }, [isLoaded, isSignedIn, invite, token]);
 
   const role = user?.publicMetadata?.role as string | undefined;
@@ -149,10 +156,9 @@ export function ClaimPage() {
   // ── Signed-out — show invite info + auth links ──────────────────────
   const claimUrl = `/claim/${token}`;
   const signInUrl = `/sign-in?redirect_url=${encodeURIComponent(claimUrl)}`;
-  const signUpUrl = `/sign-up`;
+  const signUpUrl = `/sign-up?redirect_url=${encodeURIComponent(claimUrl)}`;
 
   function handleSignUp() {
-    // Store token so WorkerHome can auto-claim after onboarding
     sessionStorage.setItem(PENDING_CLAIM_KEY, token!);
     navigate(signUpUrl);
   }
