@@ -20,6 +20,7 @@ import { ClaimPage } from "./pages/ClaimPage";
 import { WorkerHome } from "./pages/WorkerHome";
 import { Settings } from "./pages/Settings";
 import { PayrollHistory } from "./pages/PayrollHistory";
+import { Termination } from "./pages/Termination";
 
 function AuthTokenSync() {
   const { getToken } = useAuth();
@@ -79,6 +80,7 @@ function PortalRouter() {
         <Route path="/"            element={<Dashboard />} />
         <Route path="/workers"     element={<Workers />} />
         <Route path="/workers/new" element={<WorkerProfile />} />
+        <Route path="/workers/:id/terminate" element={<Termination />} />
         <Route path="/workers/:id" element={<WorkerProfile />} />
         <Route path="/payroll"     element={<Payroll />} />
         <Route path="/history"     element={<PayrollHistory />} />

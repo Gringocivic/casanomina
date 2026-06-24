@@ -14,7 +14,7 @@ import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
-import { Users, Plus, Pencil, Trash2, Send, Copy, CheckCircle2, Shield, X } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Send, Copy, CheckCircle2, Shield, X, UserMinus } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 const T = {
@@ -211,6 +211,12 @@ export function Workers() {
 
                   {/* Actions */}
                   <div className="flex gap-2 shrink-0">
+                    <Link to={`/workers/${w.id}/terminate`}>
+                      <Button variant="secondary" size="sm">
+                        <UserMinus size={14} />
+                        {lang === "en" ? "Finiquito" : "Finiquito"}
+                      </Button>
+                    </Link>
                     <Link to={`/workers/${w.id}`}>
                       <Button variant="secondary" size="sm">
                         <Pencil size={14} />
