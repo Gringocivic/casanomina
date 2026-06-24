@@ -45,32 +45,25 @@ export function ClaimPage() {
       .catch((e) => setInviteError(e.message));
   }, [token]);
 
-  // Once signed in with a pending invite → register as worker (if needed) then claim
+  // Once signed in with a pending invite → claim (backend handles worker account creation)
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !token || !invite) return;
     const role = user?.publicMetadata?.role as string | undefined;
-    // Employers can't claim worker invites
     if (role === "employer") return;
     if (invite.invite_status === "claimed" || claimed) return;
 
     setClaiming(true);
-    (async () => {
-      try {
-        // If no role yet, register as worker first
-        if (!role) {
-          await api.auth.registerRole({ role: "worker", full_name: invite.worker_name });
-          await user?.reload();
-        }
-        await api.employments.claim(token);
+    api.employments.claim(token)
+      .then(async () => {
         sessionStorage.removeItem(PENDING_CLAIM_KEY);
         await user?.reload();
         setClaimed(true);
         setTimeout(() => navigate("/", { replace: true }), 2000);
-      } catch (e: any) {
+      })
+      .catch((e: any) => {
         setClaimError(e.message);
         setClaiming(false);
-      }
-    })();
+      });
   }, [isLoaded, isSignedIn, invite, token]);
 
   const role = user?.publicMetadata?.role as string | undefined;

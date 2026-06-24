@@ -11,10 +11,9 @@
  */
 import type { FastifyPluginAsync } from "fastify";
 import { db } from "../db/client.js";
-import { workers, employers } from "../db/schema.js";
+import { workers, employers, workerAccounts } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { requireWorker } from "../lib/auth-guard.js";
 
 const plugin: FastifyPluginAsync = async (fastify) => {
 
@@ -56,16 +55,20 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   );
 
   // ── POST /api/employments/claim ──────────────────────────────────────────
-  // Worker-only. Body: { token: string }
-  // Links the calling workerAccount to the worker row and activates the employment.
+  // Authenticated (any signed-in user). Body: { token: string }
+  // Creates the workerAccount if it doesn't exist yet, then links the employment.
   fastify.post(
     "/claim",
     async (req, reply) => {
-      if (!requireWorker(req, reply)) return;
+      const clerkUserId = (req as any).clerkUserId as string | null;
+      if (!clerkUserId) {
+        return reply.status(401).send({ error: "Authentication required" });
+      }
 
-      const workerAccountId = (req as any).workerAccountId as string | null;
-      if (!workerAccountId) {
-        return reply.status(403).send({ error: "Worker account not found — complete onboarding first" });
+      // Reject employers trying to claim worker invites
+      const clerkRole = (req as any).clerkRole as string | null;
+      if (clerkRole === "employer") {
+        return reply.status(403).send({ error: "Employer accounts cannot claim worker invites" });
       }
 
       const body = z.object({ token: z.string().min(1) }).parse(req.body);
@@ -79,6 +82,33 @@ const plugin: FastifyPluginAsync = async (fastify) => {
 
       if (worker.invite_status === "claimed") {
         return reply.status(409).send({ error: "This invite has already been claimed" });
+      }
+
+      // Find or create the workerAccount for this Clerk user
+      let workerAccountId: string;
+      const [existing] = await db
+        .select({ id: workerAccounts.id })
+        .from(workerAccounts)
+        .where(eq(workerAccounts.clerk_user_id, clerkUserId));
+
+      if (existing) {
+        workerAccountId = existing.id;
+      } else {
+        const [created] = await db
+          .insert(workerAccounts)
+          .values({ clerk_user_id: clerkUserId, full_name: worker.full_name })
+          .returning({ id: workerAccounts.id });
+        workerAccountId = created.id;
+        // Stamp Clerk publicMetadata so the frontend knows the role
+        if (fastify.clerkClient) {
+          try {
+            await fastify.clerkClient.users.updateUser(clerkUserId, {
+              publicMetadata: { role: "worker" },
+            });
+          } catch (e) {
+            fastify.log.warn({ err: e }, "Failed to set Clerk publicMetadata.role");
+          }
+        }
       }
 
       const [updated] = await db
