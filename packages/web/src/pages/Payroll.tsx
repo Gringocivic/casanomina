@@ -14,7 +14,8 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
-import { ChevronDown, ChevronRight, Receipt, CheckCircle, DollarSign, Download, Clock, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Receipt, CheckCircle, DollarSign, Download, Clock, Loader2, AlertTriangle, CalendarX2 } from "lucide-react";
+import { RATES_2026 } from "@casanomina/calculator";
 
 function IMSSBreakdownTable({ imss, lang }: { imss: any; lang: "en" | "es" }) {
   const [open, setOpen] = useState(false);
@@ -152,6 +153,20 @@ export function Payroll() {
 
   const [historyKey, setHistoryKey] = useState(0);
 
+  // Holiday check: decisions for each holiday detected in the period
+  // "paid_off" = took day off but still paid (default), "worked" = triple pay, "unpaid" = deduct
+  const [holidayDecisions, setHolidayDecisions] = useState<Record<string, "paid_off" | "worked" | "unpaid">>({});
+
+  const detectedHolidays = useMemo(() => {
+    if (!periodForm.start_date || !periodForm.end_date) return [];
+    const start = new Date(periodForm.start_date + "T12:00:00");
+    const end   = new Date(periodForm.end_date   + "T12:00:00");
+    return (RATES_2026.mandatory_holidays_2026 ?? []).filter((h) => {
+      const d = new Date(h.date + "T12:00:00");
+      return d >= start && d <= end;
+    });
+  }, [periodForm.start_date, periodForm.end_date]);
+
   const { data: history, loading: historyLoading } = useApi(
     () => selectedWorker ? api.payroll.list(selectedWorker) : Promise.resolve([] as any[]),
     [selectedWorker, historyKey]
@@ -159,12 +174,16 @@ export function Payroll() {
 
   async function handlePreview() {
     if (!selectedWorker || !periodForm.start_date || !periodForm.days_worked) return;
+    const workedHolidays = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "worked").length;
+    const unpaidHolidays = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "unpaid").length;
+    const adjDaysWorked  = Math.max(1, Number(periodForm.days_worked) - unpaidHolidays);
     setPreviewing(true);
     try {
       const result = await api.payroll.preview({
-        worker_id: selectedWorker,
+        worker_id:           selectedWorker,
         ...periodForm,
-        days_worked: Number(periodForm.days_worked),
+        days_worked:         adjDaysWorked,
+        holiday_days_worked: workedHolidays,
       });
       setPreview(result);
     } catch (e: any) {
@@ -176,11 +195,15 @@ export function Payroll() {
 
   async function handleApproveAndSave() {
     setSaving(true);
+    const workedHolidays2 = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "worked").length;
+    const unpaidHolidays2 = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "unpaid").length;
+    const adjDaysWorked2  = Math.max(1, Number(periodForm.days_worked) - unpaidHolidays2);
     try {
       const run = await api.payroll.create({
-        worker_id: selectedWorker,
+        worker_id:           selectedWorker,
         ...periodForm,
-        days_worked: Number(periodForm.days_worked),
+        days_worked:         adjDaysWorked2,
+        holiday_days_worked: workedHolidays2,
       });
       const approved = await api.payroll.approve(run.id);
       setSavedRun(approved);
@@ -328,7 +351,7 @@ export function Payroll() {
               </label>
               <input type="date" className={fieldClass}
                 value={periodForm.start_date}
-                onChange={(e) => setPeriodForm(f => ({ ...f, start_date: e.target.value }))}
+                onChange={(e) => { setPeriodForm(f => ({ ...f, start_date: e.target.value })); setHolidayDecisions({}); setPreview(null); }}
               />
             </div>
             <div>
@@ -337,7 +360,7 @@ export function Payroll() {
               </label>
               <input type="date" className={fieldClass}
                 value={periodForm.end_date}
-                onChange={(e) => setPeriodForm(f => ({ ...f, end_date: e.target.value }))}
+                onChange={(e) => { setPeriodForm(f => ({ ...f, end_date: e.target.value })); setHolidayDecisions({}); setPreview(null); }}
               />
             </div>
           </div>
@@ -351,6 +374,74 @@ export function Payroll() {
               placeholder="7"
             />
           </div>
+
+          {/* ── Holiday check ─────────────────────────────────── */}
+          {detectedHolidays.length > 0 && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <CalendarX2 size={16} className="text-amber-600 flex-shrink-0" />
+                <p className="text-sm font-semibold text-amber-800">
+                  {detectedHolidays.length === 1
+                    ? (lang === "en" ? "1 mandatory holiday in this period" : "1 día festivo obligatorio en este periodo")
+                    : (lang === "en" ? `${detectedHolidays.length} mandatory holidays in this period` : `${detectedHolidays.length} días festivos en este periodo`)}
+                </p>
+              </div>
+              <p className="text-xs text-amber-700">
+                {lang === "en"
+                  ? "What did the worker do on each holiday? Default: no change to pay."
+                  : "¿Qué hizo la trabajadora en cada festivo? Sin cambio al pago por defecto."}
+              </p>
+              {detectedHolidays.map((h) => {
+                const decision = holidayDecisions[h.date] ?? "paid_off";
+                const btn = (val: "paid_off" | "worked" | "unpaid", label: string, note: string) => (
+                  <button
+                    type="button"
+                    onClick={() => { setHolidayDecisions(d => ({ ...d, [h.date]: val })); setPreview(null); }}
+                    className={`flex-1 text-center px-2 py-2 rounded-xl border-2 text-xs font-medium transition-colors ${
+                      decision === val
+                        ? "border-terracotta-500 bg-terracotta-50 text-terracotta-700"
+                        : "border-gray-200 text-gray-500 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div>{label}</div>
+                    <div className="text-gray-400 font-normal mt-0.5">{note}</div>
+                  </button>
+                );
+                return (
+                  <div key={h.date} className="bg-white rounded-xl p-3 border border-amber-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-gray-900">{h.name}</span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(h.date + "T12:00:00").toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { weekday: "short", month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      {btn("paid_off",
+                        lang === "en" ? "Day off (paid)" : "Descanso pagado",
+                        lang === "en" ? "No change" : "Sin cambio")}
+                      {btn("worked",
+                        lang === "en" ? "Worked it" : "Trabajó",
+                        lang === "en" ? "+triple pay" : "+pago triple")}
+                      {btn("unpaid",
+                        lang === "en" ? "Didn't work" : "No trabajó",
+                        lang === "en" ? "−1 day" : "−1 día")}
+                    </div>
+                  </div>
+                );
+              })}
+              {detectedHolidays.some((h) => (holidayDecisions[h.date] ?? "paid_off") === "worked") && (
+                <div className="flex items-start gap-2 p-2 bg-terracotta-50 border border-terracotta-100 rounded-lg">
+                  <AlertTriangle size={14} className="text-terracotta-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-terracotta-700">
+                    {lang === "en"
+                      ? "Triple pay will be added: 2× daily salary per holiday worked (LFT Art. 75)."
+                      : "Se agregará pago triple: 2× salario diario por festivo trabajado (LFT Art. 75)."}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <Button onClick={handlePreview} loading={previewing}
             disabled={!selectedWorker || !periodForm.start_date || !periodForm.days_worked}>
             {lang === "en" ? "Preview Payroll" : "Vista Previa de Nomina"}
@@ -369,6 +460,11 @@ export function Payroll() {
             <div className="p-4 bg-gray-50 rounded-xl text-center">
               <p className="text-xs text-gray-500 mb-1">{lang === "en" ? "Gross Wages" : "Salario Bruto"}</p>
               <MoneyAmount amount={preview.gross_wages} size="lg" />
+              {preview.holiday_bonus > 0 && (
+                <p className="text-xs text-amber-600 mt-1 font-medium">
+                  {lang === "en" ? `incl. $${preview.holiday_bonus.toFixed(2)} holiday bonus` : `incl. $${preview.holiday_bonus.toFixed(2)} bono festivo`}
+                </p>
+              )}
             </div>
             <div className="p-4 bg-sage-50 rounded-xl text-center">
               <p className="text-xs text-sage-600 mb-1">{lang === "en" ? "Worker Net Pay" : "Pago Neto (Trabajadora)"}</p>

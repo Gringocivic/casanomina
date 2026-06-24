@@ -45,8 +45,12 @@ export function calculatePayroll(
   period: PayPeriod,
   config: RatesConfig
 ): PayrollResult {
-  // Step 1: Gross wages = daily salary x days worked.
-  const grossWages = roundCurrency(worker.daily_salary * period.days_worked);
+  // Step 1: Gross wages = daily salary x days worked, plus holiday bonus.
+  // Per LFT Art. 75: if a worker works a mandatory holiday, they earn their regular
+  // daily salary (already in days_worked) PLUS double that amount as a bonus.
+  // So each holiday worked adds 2× the daily salary on top.
+  const holidayBonus = roundCurrency(worker.daily_salary * 2 * (period.holiday_days_worked ?? 0));
+  const grossWages = roundCurrency(worker.daily_salary * period.days_worked + holidayBonus);
 
   // Step 2: SBC (slightly higher number used only for IMSS/INFONAVIT math).
   const sbc = calculateSBC(worker.daily_salary, config);
@@ -86,6 +90,7 @@ export function calculatePayroll(
     period,
     config_id: config.config_id,
     gross_wages: grossWages,
+    holiday_bonus: holidayBonus,
     imss: imssForPeriod,
     infonavit_employer_contribution: infonavitForPeriod,
     isr: isrResult,

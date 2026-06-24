@@ -145,6 +145,8 @@ export interface PayPeriod {
   start_date: string;
   end_date: string;
   days_worked: number;
+  /** Mandatory holidays the worker actually worked — each earns 2× bonus on top of regular pay (LFT Art. 75). */
+  holiday_days_worked?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +194,8 @@ export interface PayrollResult {
   config_id: string;
 
   gross_wages: number;
+  /** Extra pay for mandatory holidays worked: daily_salary × 2 × holiday_days_worked (LFT Art. 75). */
+  holiday_bonus: number;
   imss: IMSSBreakdown;
   infonavit_employer_contribution: number;
 

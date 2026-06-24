@@ -17,10 +17,11 @@ import type { RatesConfig, WorkerRecord, PayPeriod } from "@casanomina/calculato
 import { requireEmployer, ownsResource } from "../lib/auth-guard.js";
 
 const PeriodSchema = z.object({
-  worker_id:   z.string().uuid(),
-  start_date:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  end_date:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  days_worked: z.number().int().positive(),
+  worker_id:            z.string().uuid(),
+  start_date:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  days_worked:          z.number().int().positive(),
+  holiday_days_worked:  z.number().int().min(0).default(0),
 });
 
 const plugin: FastifyPluginAsync = async (fastify) => {
@@ -47,9 +48,10 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     };
 
     const period: PayPeriod = {
-      start_date:  body.start_date,
-      end_date:    body.end_date,
-      days_worked: body.days_worked,
+      start_date:          body.start_date,
+      end_date:            body.end_date,
+      days_worked:         body.days_worked,
+      holiday_days_worked: body.holiday_days_worked,
     };
 
     const result = calculatePayroll(workerRecord, period, config.config_data as RatesConfig);
@@ -75,7 +77,8 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     };
 
     const period: PayPeriod = {
-      start_date: body.start_date, end_date: body.end_date, days_worked: body.days_worked,
+      start_date: body.start_date, end_date: body.end_date,
+      days_worked: body.days_worked, holiday_days_worked: body.holiday_days_worked,
     };
 
     const result = calculatePayroll(workerRecord, period, config.config_data as RatesConfig);
