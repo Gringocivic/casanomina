@@ -77,7 +77,14 @@ export async function buildServer() {
     contentSecurityPolicy: false,
   });
   await fastify.register(cors, {
-    origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+    origin: (origin, cb) => {
+      const allowed = (process.env.FRONTEND_URL ?? "http://localhost:5173")
+        .split(",")
+        .map((s) => s.trim());
+      // Allow requests with no origin (curl, server-to-server)
+      if (!origin || allowed.includes(origin)) return cb(null, true);
+      cb(new Error(`CORS: origin ${origin} not allowed`), false);
+    },
     credentials: true,
   });
 
