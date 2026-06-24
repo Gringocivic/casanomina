@@ -80,7 +80,12 @@ export async function buildServer() {
     origin: (origin, cb) => {
       const allowed = (process.env.FRONTEND_URL ?? "http://localhost:5173")
         .split(",")
-        .map((s) => s.trim());
+        .map((s) => {
+          s = s.trim();
+          // Railway strips https:// from displayed values — add it back if missing
+          if (s && !s.startsWith("http")) s = `https://${s}`;
+          return s;
+        });
       // Allow requests with no origin (curl, server-to-server)
       if (!origin || allowed.includes(origin)) return cb(null, true);
       cb(new Error(`CORS: origin ${origin} not allowed`), false);
