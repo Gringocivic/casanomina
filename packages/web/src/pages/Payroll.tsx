@@ -92,7 +92,10 @@ export function Payroll() {
   const { getToken } = useAuth();
   const { data: workers } = useApi(() => api.workers.list(), []);
 
-  const [selectedWorker, setSelectedWorker] = useState<string>("");
+  // Pre-select worker if ?worker=<id> is in the URL (from dashboard "Run" CTA)
+  const preselectedWorker = new URLSearchParams(window.location.search).get("worker") ?? "";
+
+  const [selectedWorker, setSelectedWorker] = useState<string>(preselectedWorker);
   const [periodForm, setPeriodForm] = useState({
     start_date: "",
     end_date: "",

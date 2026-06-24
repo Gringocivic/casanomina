@@ -4,16 +4,6 @@
  * The "big picture" calculations that combine the basic building blocks
  * from core.ts into the numbers that actually go on a payslip or a
  * severance settlement.
- *
- * PLAIN LANGUAGE OVERVIEW:
- * - calculatePayroll(): "How much do I pay this person THIS period, and
- *   how much does it cost me in total once I add IMSS/INFONAVIT?"
- * - calculateFiniquito(): "This worker is leaving on good terms (they
- *   resigned, or the job naturally ended) — what do I owe them for
- *   their last days, unused vacation, and partial-year bonus?"
- * - calculateLiquidacion(): "I'm letting this worker go without a legally
- *   recognized justified cause — what is the FULL severance I owe,
- *   including the finiquito items PLUS the legal severance penalty?"
  */
 
 import type {
@@ -28,6 +18,7 @@ import {
   calculateSBC,
   calculateIMSSContributions,
   calculateINFONAVIT,
+  calculateISR,
   calculateAguinaldo,
   calculateVacationDays,
   calculatePrimaVacacional,
@@ -43,22 +34,11 @@ import {
 /**
  * Calculates a full payroll result for one worker for one pay period.
  *
- * PLAIN LANGUAGE: This is the main "run payroll" function. Give it a
- * worker, a pay period (with how many days they actually worked), and
- * the year's rate config — it returns everything you need: the gross
- * wages, the IMSS/INFONAVIT contributions (split between what the
- * employer pays and what comes out of the worker's pay), the worker's
- * take-home pay, and the employer's total cost.
+ * Combines gross wages, IMSS/INFONAVIT contributions, and ISR withholding
+ * into a complete PayrollResult.
  *
- * LEGAL BASIS: Combines LSS Art. 27 (SBC), LSS Arts. 71-168 (IMSS
- * branches), and Ley del INFONAVIT Art. 29 (housing fund). See
- * docs/CALCULATIONS.md for the full citation list.
- *
- * @param worker - The worker's employment record.
- * @param period - The pay period being calculated, including days worked.
- * @param config - The rates configuration for the relevant year.
- * @returns A full PayrollResult with gross pay, deductions, net pay,
- *   and total employer cost.
+ * LEGAL BASIS: LSS Art. 27 (SBC), LSS Arts. 71-168 (IMSS branches),
+ * Ley del INFONAVIT Art. 29, LISR Art. 96 (ISR withholding).
  */
 export function calculatePayroll(
   worker: WorkerRecord,
@@ -68,16 +48,10 @@ export function calculatePayroll(
   // Step 1: Gross wages = daily salary x days worked.
   const grossWages = roundCurrency(worker.daily_salary * period.days_worked);
 
-  // Step 2: Calculate the SBC (the slightly-higher number used only for
-  // IMSS/INFONAVIT math, not for the worker's actual pay).
+  // Step 2: SBC (slightly higher number used only for IMSS/INFONAVIT math).
   const sbc = calculateSBC(worker.daily_salary, config);
 
-  // Step 3: Calculate IMSS contributions based on the SBC.
-  // NOTE: IMSS contributions are normally calculated per full
-  // contribution period (commonly bi-weekly). Here we apply the daily
-  // SBC rate proportionally to the days worked in this period for
-  // simplicity; production systems should align this with IMSS's
-  // official bimestral/bisemanal billing cycle.
+  // Step 3: IMSS contributions, scaled to the period by days_worked.
   const dailyImss = calculateIMSSContributions(sbc, config);
   const periodFactor = period.days_worked;
 
@@ -89,19 +63,22 @@ export function calculatePayroll(
     total: roundCurrency(dailyImss.total * periodFactor),
   };
 
-  // Step 4: Calculate INFONAVIT (employer-only), also scaled to the period.
+  // Step 4: INFONAVIT (employer-only), scaled to the period.
   const dailyInfonavit = calculateINFONAVIT(sbc, config);
   const infonavitForPeriod = roundCurrency(dailyInfonavit * periodFactor);
 
-  // Step 5: The worker's take-home pay is their gross wages minus their
-  // share of IMSS contributions.
-  const totalDeductions = imssForPeriod.total_worker;
+  // Step 5: ISR withholding — withheld from the worker, remitted to SAT.
+  // Based on the daily salary projected to a monthly equivalent (x 30),
+  // then prorated back to the period by days_worked.
+  const isrResult = calculateISR(worker.daily_salary, period.days_worked, config);
+
+  // Step 6: Worker take-home = gross wages minus IMSS share AND ISR.
+  const totalDeductions = roundCurrency(imssForPeriod.total_worker + isrResult.period_isr_withholding);
   const netPay = roundCurrency(grossWages - totalDeductions);
 
-  // Step 6: The employer's total cost is the gross wages PLUS the
-  // employer's IMSS share PLUS INFONAVIT. (The worker's IMSS share is
-  // already included in gross wages — it's withheld from the worker,
-  // not paid extra by the employer.)
+  // Step 7: Employer total cost = gross wages + employer IMSS + INFONAVIT.
+  // ISR is NOT an additional employer cost — it is the worker's own money
+  // withheld by the employer on SAT's behalf.
   const employerTotalCost = roundCurrency(grossWages + imssForPeriod.total_employer + infonavitForPeriod);
 
   return {
@@ -111,6 +88,7 @@ export function calculatePayroll(
     gross_wages: grossWages,
     imss: imssForPeriod,
     infonavit_employer_contribution: infonavitForPeriod,
+    isr: isrResult,
     total_deductions: totalDeductions,
     net_pay: netPay,
     employer_total_cost: employerTotalCost,
@@ -141,27 +119,12 @@ function scaleImssBranches(
 
 /**
  * Calculates the "finiquito" — the final settlement owed to a worker
- * who is leaving WITHOUT severance pay being owed (e.g. they resigned
- * voluntarily, or there was a legally justified cause for dismissal
- * under LFT Art. 47).
- *
- * PLAIN LANGUAGE: Even when no severance is owed, the employer must
- * still pay out everything the worker has already EARNED but not yet
- * received: any outstanding wages, a proportional Christmas bonus
- * (aguinaldo) for the part of the year worked, and proportional unused
- * vacation days plus their vacation premium.
+ * who is leaving WITHOUT severance pay being owed.
  *
  * LEGAL BASIS:
  *  - Proportional aguinaldo: LFT Art. 87
- *  - Proportional vacation pay: LFT Arts. 76, 79 (vacation cannot be
- *    "bought out" while employed, but unused accrued vacation must be
- *    paid out upon termination)
- *  - Prima vacacional on that vacation pay: LFT Art. 80
- *
- * @param worker - The worker's employment record.
- * @param terminationDate - ISO date the employment ends, e.g. "2026-06-15".
- * @param config - The rates configuration for the relevant year.
- * @returns An itemized FiniquitoBreakdown.
+ *  - Proportional vacation pay: LFT Arts. 76, 79
+ *  - Prima vacacional: LFT Art. 80
  */
 export function calculateFiniquito(
   worker: WorkerRecord,
@@ -170,36 +133,21 @@ export function calculateFiniquito(
 ): FiniquitoBreakdown {
   const terminationDateStr = terminationDate.toISOString().split("T")[0];
 
-  // --- Outstanding wages ---
-  // NOTE: This simplified version assumes 0 pending wages, since actual
-  // pending wages depend on payroll records the calculator does not have
-  // access to (it's a pure function with no DB access). The API layer
-  // should populate `pending_wages` from the worker's payment history
-  // before persisting the finiquito record, or pass it in via a richer
-  // worker/payroll context object in a future version.
+  // Outstanding wages — simplified to 0 here; the API layer should populate
+  // from actual payroll records before persisting the finiquito record.
   const pendingWages = 0;
 
-  // --- Proportional aguinaldo ---
-  // How many days has the worker worked THIS calendar year, up to the
-  // termination date?
+  // Proportional aguinaldo: days worked this calendar year up to termination.
   const yearStart = `${terminationDate.getFullYear()}-01-01`;
   const daysWorkedThisYear = daysBetweenInclusive(yearStart, terminationDateStr);
   const proportionalAguinaldo = calculateAguinaldo(worker.daily_salary, daysWorkedThisYear, config);
 
-  // --- Proportional vacation ---
-  // Years of service determine how many vacation days the worker has
-  // earned for their CURRENT (incomplete) year of service. We calculate
-  // the days owed for the most recently completed year, then prorate
-  // for the fraction of the new year worked so far.
+  // Proportional vacation: fraction of current service-year elapsed.
   const yearsOfService = calculateYearsOfService(worker.start_date, terminationDateStr);
   const vacationDaysForCurrentCycle = calculateVacationDays(yearsOfService + 1, config);
 
-  // Fraction of the current service-year that has elapsed.
   const anniversaryThisCycle = getAnniversaryDate(worker.start_date, yearsOfService, terminationDateStr);
-  const daysIntoCurrentCycle = daysBetweenInclusive(
-    anniversaryThisCycle,
-    terminationDateStr
-  );
+  const daysIntoCurrentCycle = daysBetweenInclusive(anniversaryThisCycle, terminationDateStr);
   const fractionOfYear = Math.min(1, daysIntoCurrentCycle / 365);
   const proportionalVacationDays = vacationDaysForCurrentCycle * fractionOfYear;
 
@@ -234,27 +182,10 @@ export function calculateFiniquito(
  * Calculates the "liquidacion" — the full severance package owed when an
  * employer dismisses a worker WITHOUT a legally justified cause.
  *
- * PLAIN LANGUAGE: This includes everything from the finiquito (unpaid
- * wages, proportional bonus, proportional vacation) PLUS three
- * additional legal penalties for letting someone go without cause:
- *  1. Three months of pay (the "constitutional indemnity")
- *  2. 20 extra days of pay for each year worked
- *  3. A smaller "seniority bonus" (prima de antiguedad) of 12 days per
- *     year worked, capped at twice the minimum wage
- *
  * LEGAL BASIS:
- *  - 3 months' indemnity: LFT Art. 50, fraccion III
- *  - 20 days per year of service: LFT Art. 50, fraccion II (this applies
- *    when the worker has more than 1 year of service; for less than 1
- *    year it is generally not owed, but this calculator includes it
- *    proportionally for transparency — consult a labor attorney for
- *    edge cases)
+ *  - 3 months indemnity: LFT Art. 50, fraccion III
+ *  - 20 days per year of service: LFT Art. 50, fraccion II
  *  - Prima de antiguedad (12 days/year, capped): LFT Art. 162
- *
- * @param worker - The worker's employment record.
- * @param terminationDate - ISO date the employment ends, e.g. "2026-06-15".
- * @param config - The rates configuration for the relevant year.
- * @returns An itemized LiquidacionBreakdown (finiquito items + severance items).
  */
 export function calculateLiquidacion(
   worker: WorkerRecord,
@@ -264,25 +195,20 @@ export function calculateLiquidacion(
   const finiquito = calculateFiniquito(worker, terminationDate, config);
   const terminationDateStr = finiquito.termination_date;
 
-  const yearsOfService = calculateYearsOfService(worker.start_date, terminationDateStr);
-  // For the severance calculations, partial years count proportionally.
   const exactYearsOfService = getExactYearsOfService(worker.start_date, terminationDateStr);
 
-  // --- 3 months' constitutional indemnity (LFT Art. 50-III) ---
-  const monthlyEquivalent = worker.daily_salary * 30; // standard 30-day month convention
+  // 3 months constitutional indemnity (LFT Art. 50-III)
+  const monthlyEquivalent = worker.daily_salary * 30;
   const constitutionalIndemnity = roundCurrency(
     monthlyEquivalent * config.liquidacion_constitutional_indemnity_months
   );
 
-  // --- 20 days per year of service (LFT Art. 50-II) ---
+  // 20 days per year of service (LFT Art. 50-II)
   const twentyDaysPerYear = roundCurrency(
     worker.daily_salary * config.liquidacion_seniority_premium_days_per_year * exactYearsOfService
   );
 
-  // --- Prima de antiguedad (LFT Art. 162) ---
-  // 12 days of salary per year of service, but the DAILY RATE used for
-  // this calculation is capped at twice the general minimum daily wage
-  // if the worker's actual salary exceeds that cap.
+  // Prima de antiguedad — 12 days per year, capped (LFT Art. 162)
   const seniorityCapDailyRate = Math.min(
     worker.daily_salary,
     config.minimum_daily_wage_general * config.seniority_premium_cap_multiplier_of_min_wage
@@ -308,24 +234,12 @@ export function calculateLiquidacion(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Finds the date of the worker's most recent "service anniversary" —
- * the start of their current (possibly incomplete) year of service.
- *
- * Example: if a worker started on 2023-06-01 and today is 2026-08-15,
- * their completed years of service is 3 (as of 2026-06-01), so this
- * returns "2026-06-01" — the anniversary that begins their 4th year.
- */
 function getAnniversaryDate(startDate: string, completedYears: number, asOfDate: string): string {
   const start = new Date(startDate);
   const anniversary = new Date(start.getFullYear() + completedYears, start.getMonth(), start.getDate());
   return anniversary.toISOString().split("T")[0];
 }
 
-/**
- * Calculates years of service as a DECIMAL (e.g. 2.5 years), used for
- * proportionally calculating severance amounts for partial years.
- */
 function getExactYearsOfService(startDate: string, asOfDate: string): number {
   const start = new Date(startDate);
   const asOf = new Date(asOfDate);

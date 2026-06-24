@@ -95,6 +95,7 @@ export const workers = pgTable("workers", {
   curp:               varchar("curp", { length: 18 }),      // 18-char national ID
   imss_nss:           varchar("imss_nss", { length: 11 }),  // IMSS affiliation #
   is_imss_registered: boolean("is_imss_registered").notNull().default(false),
+  live_in:            boolean("live_in").notNull().default(false),      // live-in vs. live-out
   notes:              text("notes"),
   created_at:         timestamp("created_at").notNull().defaultNow(),
   updated_at:         timestamp("updated_at").notNull().defaultNow(),
@@ -114,6 +115,7 @@ export const payrollRuns = pgTable("payroll_runs", {
   imss_worker_deduction:     numeric("imss_worker_deduction", { precision: 10, scale: 2 }).notNull(),
   imss_employer_contribution: numeric("imss_employer_contribution", { precision: 10, scale: 2 }).notNull(),
   infonavit_employer_contribution: numeric("infonavit_employer_contribution", { precision: 10, scale: 2 }).notNull(),
+  isr_withholding:       numeric("isr_withholding", { precision: 10, scale: 2 }).notNull().default("0"),
   net_pay:               numeric("net_pay", { precision: 10, scale: 2 }).notNull(),
   employer_total_cost:   numeric("employer_total_cost", { precision: 10, scale: 2 }).notNull(),
   // Full PayrollResult JSON for payslip generation and audit trail.

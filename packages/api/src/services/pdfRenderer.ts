@@ -186,7 +186,13 @@ function PayslipDoc({ run, worker, config }: {
   const wrkEM  = branches?.enfermedad_maternidad?.worker ?? 0;
   const wrkIV  = branches?.invalidez_vida?.worker ?? 0;
   const wrkCV  = (branches?.cesantia_vejez?.worker ?? 0) + (branches?.retiro?.worker ?? 0);
-  const totalDed = (imss?.total_worker ?? 0);
+  const imssWorkerTotal = (imss?.total_worker ?? 0);
+
+  // ISR (income tax) withheld this period
+  const isrData = bd?.isr as { period_isr_withholding?: number; monthly_isr_gross?: number; monthly_employment_subsidy?: number } | undefined;
+  const isrWithholding = isrData?.period_isr_withholding ?? 0;
+
+  const totalDed = imssWorkerTotal + isrWithholding;
 
   // Employer IMSS breakdown
   const empEM  = branches?.enfermedad_maternidad?.employer ?? 0;
@@ -285,12 +291,15 @@ function PayslipDoc({ run, worker, config }: {
       Row("Sueldo del período", mxn(grossPay), false),
       SubTotal("Total Percepciones", mxn(grossPay)),
 
-      // ── DEDUCCIONES (only if IMSS registered) ─────────────────────────────
-      worker.is_imss_registered && totalDed > 0 ? el(View, null,
+      // ── DEDUCCIONES ────────────────────────────────────────────────────────
+      totalDed > 0 ? el(View, null,
         el(Text, { style: S.sectionTitle }, "DEDUCCIONES / DEDUCTIONS"),
-        wrkEM  > 0 ? Row("IMSS – Enfermedad y Maternidad (obrero)", `(${mxn(wrkEM)})`, false, true) : null,
-        wrkIV  > 0 ? Row("IMSS – Invalidez y Vida (obrero)", `(${mxn(wrkIV)})`, true, true) : null,
-        wrkCV  > 0 ? Row("IMSS – Cesantía, Vejez y Retiro (obrero)", `(${mxn(wrkCV)})`, false, true) : null,
+        // IMSS worker share (only shown when IMSS registered)
+        worker.is_imss_registered && wrkEM  > 0 ? Row("IMSS – Enfermedad y Maternidad (obrero)", `(${mxn(wrkEM)})`, false, true) : null,
+        worker.is_imss_registered && wrkIV  > 0 ? Row("IMSS – Invalidez y Vida (obrero)", `(${mxn(wrkIV)})`, true,  true) : null,
+        worker.is_imss_registered && wrkCV  > 0 ? Row("IMSS – Cesantía, Vejez y Retiro (obrero)", `(${mxn(wrkCV)})`, false, true) : null,
+        // ISR always shown when non-zero
+        isrWithholding > 0 ? Row("ISR retenido (Art. 96 LISR) / Income Tax", `(${mxn(isrWithholding)})`, worker.is_imss_registered ? true : false, true) : null,
         SubTotal("Total Deducciones", `(${mxn(totalDed)})`, true),
       ) : null,
 
@@ -303,9 +312,42 @@ function PayslipDoc({ run, worker, config }: {
         el(Text, { style: S.netAmt }, mxn(netPay)),
       ),
 
-      // ── EMPLOYER COST (informational) ─────────────────────────────────────
+      // ── INSTRUCCIONES DE PAGO / PAYMENT INSTRUCTIONS ──────────────────────
+      el(View, { style: { ...S.empBox, backgroundColor: "#eff6ff", marginBottom: 4 } },
+        el(Text, { style: { ...S.empTitle, color: "#1e40af" } }, "Instrucciones de Pago / Payment Instructions"),
+        // 1. Worker
+        el(View, { style: S.empRow },
+          el(Text, { style: { ...S.empKey, color: "#1e40af" } }, "① Pagar a la trabajadora / Pay worker"),
+          el(Text, { style: { ...S.empVal, color: "#1e40af" } }, mxn(netPay)),
+        ),
+        // 2. IMSS (only if registered)
+        worker.is_imss_registered ? el(View, { style: S.empRow },
+          el(Text, { style: { ...S.empKey, color: "#1e40af" } }, "② Pagar a IMSS (patronal + obrero) / Pay IMSS"),
+          el(Text, { style: { ...S.empVal, color: "#1e40af" } }, mxn((imss?.total_employer ?? 0) + imssWorkerTotal)),
+        ) : null,
+        // 3. SAT / ISR
+        isrWithholding > 0 ? el(View, { style: S.empRow },
+          el(Text, { style: { ...S.empKey, color: "#1e40af" } }, "③ Enterar a SAT (ISR retenido) / Remit to SAT"),
+          el(Text, { style: { ...S.empVal, color: "#1e40af" } }, mxn(isrWithholding)),
+        ) : null,
+        // Divider
+        el(View, { style: { borderTopWidth: 0.5, borderTopColor: "#93c5fd", marginVertical: 3 } }, null),
+        el(View, { style: S.empRow },
+          el(Text, { style: { ...S.empKey, color: "#1e40af", fontFamily: "Helvetica-Bold" } }, "Total desembolso patronal / Total employer outlay"),
+          el(Text, { style: { ...S.empVal, color: "#1e40af", fontFamily: "Helvetica-Bold" } },
+            mxn(netPay + (worker.is_imss_registered ? (imss?.total_employer ?? 0) + imssWorkerTotal : 0) + isrWithholding)
+          ),
+        ),
+        el(View, null,
+          el(Text, { style: { fontSize: 6.5, color: "#3b82f6", fontStyle: "italic", marginTop: 3 } },
+            "IMSS se liquida bimestralmente ante el IDSE. ISR se entera mensualmente en SIPARE/SAT. Consúltese a su contador."
+          ),
+        ),
+      ),
+
+      // ── COSTO PATRONAL IMSS DETALLE (informational) ───────────────────────
       worker.is_imss_registered ? el(View, { style: S.empBox },
-        el(Text, { style: S.empTitle }, "Costo Patronal (informativo) / Employer Cost (informational)"),
+        el(Text, { style: S.empTitle }, "Desglose Costo Patronal IMSS / Employer IMSS Cost Breakdown"),
         empEM  > 0 ? EmpRow("IMSS – Enfermedad y Maternidad (patrón)", empEM)   : null,
         empIV  > 0 ? EmpRow("IMSS – Invalidez y Vida (patrón)", empIV)          : null,
         empRet > 0 ? EmpRow("IMSS – Retiro (patrón)", empRet)                   : null,
@@ -314,8 +356,8 @@ function PayslipDoc({ run, worker, config }: {
         empRT  > 0 ? EmpRow("IMSS – Riesgos de Trabajo (patrón)", empRT)        : null,
         EmpRow("INFONAVIT (patrón)", infonavit),
         el(View, { style: { ...S.empRow, borderTopWidth: 0.5, borderTopColor: "#bbf7d0", paddingTop: 3, marginTop: 2 } },
-          el(Text, { style: { ...S.empKey, fontFamily: "Helvetica-Bold" } }, "Total Costo Patronal"),
-          el(Text, { style: { ...S.empVal, fontFamily: "Helvetica-Bold" } }, mxn(empCost)),
+          el(Text, { style: { ...S.empKey, fontFamily: "Helvetica-Bold" } }, "Total Costo Patronal IMSS+INFONAVIT"),
+          el(Text, { style: { ...S.empVal, fontFamily: "Helvetica-Bold" } }, mxn(empCost - grossPay)),
         ),
       ) : null,
 

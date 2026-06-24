@@ -45,6 +45,7 @@ export const api = {
   // ── Workers ─────────────────────────────────────────────────────────────
   workers: {
     list: () => req<any[]>("/api/workers"),
+    cards: () => req<any[]>("/api/workers/cards"),
     get: (id: string) => req<any>(`/api/workers/${id}`),
     create: (data: any) => req<any>("/api/workers", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) =>

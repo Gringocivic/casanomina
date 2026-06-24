@@ -4,29 +4,26 @@
   "year": 2025,
   "effective_date": "2025-01-01",
   "currency": "MXN",
-
   "_comment_minimum_wage": "Daily minimum wage in pesos, effective Jan 1, 2025.",
-  "minimum_daily_wage_general": 278.80,
+  "minimum_daily_wage_general": 278.8,
   "minimum_daily_wage_northern_border": 419.88,
-
-  "_comment_uma": "UMA daily value effective Feb 1, 2025 (per INEGI/DOF). For January 2025, the 2024 UMA value of 108.57 applied.",
+  "_comment_uma": "UMA = Unidad de Medida y Actualizacion. 2025 value (113.14) takes effect Feb 1, 2025.",
   "uma_daily_value": 113.14,
   "uma_daily_value_jan_2025": 108.57,
   "uma_effective_date": "2025-02-01",
-
-  "_comment_sbc": "SBC integration factor for a first-year worker, same formula basis as 2026 (LFT Art. 84, IMSS Art. 27 LSS): 1 + (15 + 12*0.25)/365.",
+  "_comment_sbc": "SBC = Salario Base de Cotizacion. Integration factor assumes first-year worker minimums.",
   "sbc_integration_factor": 1.0493,
   "sbc_integration_factor_basis": {
-    "_comment": "1 + (aguinaldo_days + vacation_days * prima_vacacional_pct) / 365",
+    "_comment": "1 + (15 + 12 * 0.25) / 365",
     "aguinaldo_days": 15,
     "vacation_days_assumed": 12,
     "prima_vacacional_pct": 0.25,
     "formula": "1 + (15 + 12 * 0.25) / 365"
   },
-
-  "_comment_imss": "IMSS contribution rates for 2025. Structurally identical to 2026; rates themselves are set by federal law (LSS) and have not changed, only the UMA base they apply to changes year to year.",
+  "_comment_imss": "IMSS rates for 2025.",
   "imss_rates": {
     "enfermedad_maternidad": {
+      "_comment": "Sickness & Maternity.",
       "cuota_fija_employer_pct_of_uma": 0.204,
       "excedente_three_uma_employer_pct": 0.011,
       "excedente_three_uma_worker_pct": 0.004,
@@ -36,92 +33,330 @@
       "gastos_medicos_pensionados_worker_pct": 0.00375
     },
     "invalidez_vida": {
+      "_comment": "Disability & Life Insurance (IV)",
       "employer_pct": 0.0175,
       "worker_pct": 0.00625
     },
     "retiro": {
+      "_comment": "Retirement (RCV - Retiro). Employer-only.",
       "employer_pct": 0.02,
       "worker_pct": 0
     },
     "cesantia_vejez": {
+      "_comment": "Old Age & Unemployment (RCV - CV).",
       "employer_pct": 0.031,
       "worker_pct": 0.01125
     },
     "guarderias_prestaciones_sociales": {
+      "_comment": "Daycare & Social Benefits. Employer-only.",
       "employer_pct": 0.01,
       "worker_pct": 0
     },
     "riesgos_trabajo": {
+      "_comment": "Occupational Risk. Clase I (domestic work). Employer-only.",
       "employer_pct": 0.0054,
       "worker_pct": 0,
       "risk_class": "I"
     }
   },
-
-  "_comment_infonavit": "INFONAVIT employer contribution rate, unchanged across years.",
+  "_comment_infonavit": "INFONAVIT housing fund, employer-only, 5% of SBC.",
   "infonavit_employer_pct": 0.05,
-
-  "_comment_ceav": "CEAV phased schedule for domestic worker IMSS registration, same projected schedule as in rates.2026.json. VERIFY against official IMSS publications before production use.",
+  "_comment_ceav": "CEAV phased contribution schedule 2024-2030.",
   "ceav_schedule": [
-    { "year": 2024, "employer_rate": 0.0500 },
-    { "year": 2025, "employer_rate": 0.0650 },
-    { "year": 2026, "employer_rate": 0.0800 },
-    { "year": 2027, "employer_rate": 0.0950 },
-    { "year": 2028, "employer_rate": 0.1100 },
-    { "year": 2029, "employer_rate": 0.1250 },
-    { "year": 2030, "employer_rate": 0.1400 }
+    {
+      "year": 2024,
+      "employer_rate": 0.05
+    },
+    {
+      "year": 2025,
+      "employer_rate": 0.065
+    },
+    {
+      "year": 2026,
+      "employer_rate": 0.08
+    },
+    {
+      "year": 2027,
+      "employer_rate": 0.095
+    },
+    {
+      "year": 2028,
+      "employer_rate": 0.11
+    },
+    {
+      "year": 2029,
+      "employer_rate": 0.125
+    },
+    {
+      "year": 2030,
+      "employer_rate": 0.14
+    }
   ],
-
-  "_comment_vacation": "Vacation accrual table per LFT Art. 76 (Vacaciones Dignas reform), unchanged since Jan 1, 2023.",
+  "_comment_vacation": "Vacation days per LFT Art. 76 (Vacaciones Dignas 2022).",
   "vacation_accrual_table": [
-    { "year_of_service": 1, "days": 12 },
-    { "year_of_service": 2, "days": 14 },
-    { "year_of_service": 3, "days": 16 },
-    { "year_of_service": 4, "days": 18 },
-    { "year_of_service": 5, "days": 20 },
-    { "year_of_service": 6, "days": 22 },
-    { "year_of_service": 7, "days": 22 },
-    { "year_of_service": 8, "days": 22 },
-    { "year_of_service": 9, "days": 22 },
-    { "year_of_service": 10, "days": 22 },
-    { "year_of_service": 11, "days": 24 },
-    { "year_of_service": 12, "days": 24 },
-    { "year_of_service": 13, "days": 24 },
-    { "year_of_service": 14, "days": 24 },
-    { "year_of_service": 15, "days": 24 },
-    { "year_of_service": 16, "days": 26 },
-    { "year_of_service": 17, "days": 26 },
-    { "year_of_service": 18, "days": 26 },
-    { "year_of_service": 19, "days": 26 },
-    { "year_of_service": 20, "days": 26 },
-    { "year_of_service": 21, "days": 28 }
+    {
+      "year_of_service": 1,
+      "days": 12
+    },
+    {
+      "year_of_service": 2,
+      "days": 14
+    },
+    {
+      "year_of_service": 3,
+      "days": 16
+    },
+    {
+      "year_of_service": 4,
+      "days": 18
+    },
+    {
+      "year_of_service": 5,
+      "days": 20
+    },
+    {
+      "year_of_service": 6,
+      "days": 22
+    },
+    {
+      "year_of_service": 7,
+      "days": 22
+    },
+    {
+      "year_of_service": 8,
+      "days": 22
+    },
+    {
+      "year_of_service": 9,
+      "days": 22
+    },
+    {
+      "year_of_service": 10,
+      "days": 22
+    },
+    {
+      "year_of_service": 11,
+      "days": 24
+    },
+    {
+      "year_of_service": 12,
+      "days": 24
+    },
+    {
+      "year_of_service": 13,
+      "days": 24
+    },
+    {
+      "year_of_service": 14,
+      "days": 24
+    },
+    {
+      "year_of_service": 15,
+      "days": 24
+    },
+    {
+      "year_of_service": 16,
+      "days": 26
+    },
+    {
+      "year_of_service": 17,
+      "days": 26
+    },
+    {
+      "year_of_service": 18,
+      "days": 26
+    },
+    {
+      "year_of_service": 19,
+      "days": 26
+    },
+    {
+      "year_of_service": 20,
+      "days": 26
+    },
+    {
+      "year_of_service": 21,
+      "days": 28
+    }
   ],
   "vacation_accrual_rule": {
+    "_comment": "Add 2 days every 5 years past year 20.",
     "extrapolation_step_years": 5,
     "extrapolation_step_days": 2,
     "table_max_year": 21
   },
-
-  "_comment_aguinaldo": "Aguinaldo minimum, LFT Art. 87 — statutory minimum unchanged.",
+  "_comment_aguinaldo": "Aguinaldo, LFT Art. 87. Minimum 15 days, prorated.",
   "aguinaldo_minimum_days": 15,
-
-  "_comment_prima_vacacional": "Prima Vacacional minimum, LFT Art. 80 — statutory minimum unchanged.",
+  "_comment_prima_vacacional": "Prima Vacacional, LFT Art. 80. Minimum 25%.",
   "prima_vacacional_minimum_pct": 0.25,
-
-  "_comment_finiquito_liquidacion": "Severance basics, unchanged across years (LFT Arts. 49-50, 162).",
+  "_comment_finiquito_liquidacion": "Severance, LFT Arts. 49-50, 162.",
   "liquidacion_constitutional_indemnity_months": 3,
   "liquidacion_seniority_premium_days_per_year": 20,
+  "_comment_seniority_premium_cap": "Prima de antiguedad capped at twice minimum daily wage (LFT Art. 162).",
   "seniority_premium_cap_multiplier_of_min_wage": 2,
   "seniority_premium_days_per_year": 12,
-
+  "_comment_isr": "ISR = Impuesto Sobre la Renta. 2025 SAT tables (Resolucion Miscelandea Fiscal 2025, Anexo 8). Net ISR = max(0, tariff_result - subsidy).",
+  "isr_monthly_tariff": [
+    {
+      "lower_limit": 0.01,
+      "upper_limit": 746.04,
+      "fixed_tax": 0.0,
+      "rate": 0.0192
+    },
+    {
+      "lower_limit": 746.05,
+      "upper_limit": 6332.05,
+      "fixed_tax": 14.32,
+      "rate": 0.064
+    },
+    {
+      "lower_limit": 6332.06,
+      "upper_limit": 11128.01,
+      "fixed_tax": 371.83,
+      "rate": 0.1088
+    },
+    {
+      "lower_limit": 11128.02,
+      "upper_limit": 12935.82,
+      "fixed_tax": 893.63,
+      "rate": 0.16
+    },
+    {
+      "lower_limit": 12935.83,
+      "upper_limit": 15487.71,
+      "fixed_tax": 1182.88,
+      "rate": 0.1792
+    },
+    {
+      "lower_limit": 15487.72,
+      "upper_limit": 31236.49,
+      "fixed_tax": 1640.18,
+      "rate": 0.2136
+    },
+    {
+      "lower_limit": 31236.5,
+      "upper_limit": 49233.0,
+      "fixed_tax": 4007.91,
+      "rate": 0.2352
+    },
+    {
+      "lower_limit": 49233.01,
+      "upper_limit": 93993.9,
+      "fixed_tax": 8239.26,
+      "rate": 0.3
+    },
+    {
+      "lower_limit": 93993.91,
+      "upper_limit": 125325.2,
+      "fixed_tax": 21667.26,
+      "rate": 0.32
+    },
+    {
+      "lower_limit": 125325.21,
+      "upper_limit": 375975.61,
+      "fixed_tax": 31738.14,
+      "rate": 0.34
+    },
+    {
+      "lower_limit": 375975.62,
+      "upper_limit": null,
+      "fixed_tax": 117172.48,
+      "rate": 0.35
+    }
+  ],
+  "isr_employment_subsidy_monthly": [
+    {
+      "lower_limit": 0.01,
+      "upper_limit": 1768.96,
+      "subsidy": 407.02
+    },
+    {
+      "lower_limit": 1768.97,
+      "upper_limit": 2653.38,
+      "subsidy": 406.83
+    },
+    {
+      "lower_limit": 2653.39,
+      "upper_limit": 3472.84,
+      "subsidy": 406.62
+    },
+    {
+      "lower_limit": 3472.85,
+      "upper_limit": 3537.87,
+      "subsidy": 392.77
+    },
+    {
+      "lower_limit": 3537.88,
+      "upper_limit": 4446.15,
+      "subsidy": 382.46
+    },
+    {
+      "lower_limit": 4446.16,
+      "upper_limit": 4717.18,
+      "subsidy": 354.23
+    },
+    {
+      "lower_limit": 4717.19,
+      "upper_limit": 5335.42,
+      "subsidy": 324.87
+    },
+    {
+      "lower_limit": 5335.43,
+      "upper_limit": 6224.67,
+      "subsidy": 294.63
+    },
+    {
+      "lower_limit": 6224.68,
+      "upper_limit": 7113.9,
+      "subsidy": 253.54
+    },
+    {
+      "lower_limit": 7113.91,
+      "upper_limit": 7382.33,
+      "subsidy": 217.61
+    },
+    {
+      "lower_limit": 7382.34,
+      "upper_limit": null,
+      "subsidy": 0.0
+    }
+  ],
   "_comment_holidays": "Official mandatory rest days for 2025 per LFT Art. 74.",
   "mandatory_holidays_2025": [
-    { "date": "2025-01-01", "name": "Año Nuevo (New Year's Day)", "triple_pay": true },
-    { "date": "2025-02-03", "name": "Día de la Constitución (observed, 1st Monday of Feb)", "triple_pay": true },
-    { "date": "2025-03-17", "name": "Natalicio de Benito Juárez (observed, 3rd Monday of Mar)", "triple_pay": true },
-    { "date": "2025-05-01", "name": "Día del Trabajo (Labor Day)", "triple_pay": true },
-    { "date": "2025-09-16", "name": "Día de la Independencia", "triple_pay": true },
-    { "date": "2025-11-17", "name": "Día de la Revolución (observed, 3rd Monday of Nov)", "triple_pay": true },
-    { "date": "2025-12-25", "name": "Navidad (Christmas)", "triple_pay": true }
+    {
+      "date": "2025-01-01",
+      "name": "Anio Nuevo (New Year's Day)",
+      "triple_pay": true
+    },
+    {
+      "date": "2025-02-03",
+      "name": "Dia de la Constitucion (observed, 1st Monday of Feb)",
+      "triple_pay": true
+    },
+    {
+      "date": "2025-03-17",
+      "name": "Natalicio de Benito Juarez (observed, 3rd Monday of Mar)",
+      "triple_pay": true
+    },
+    {
+      "date": "2025-05-01",
+      "name": "Dia del Trabajo (Labor Day)",
+      "triple_pay": true
+    },
+    {
+      "date": "2025-09-16",
+      "name": "Dia de la Independencia",
+      "triple_pay": true
+    },
+    {
+      "date": "2025-11-17",
+      "name": "Dia de la Revolucion (observed, 3rd Monday of Nov)",
+      "triple_pay": true
+    },
+    {
+      "date": "2025-12-25",
+      "name": "Navidad (Christmas)",
+      "triple_pay": true
+    }
   ]
 }

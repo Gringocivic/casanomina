@@ -36,9 +36,4 @@ services:
       # When absent, invite emails are skipped (non-fatal).
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-onboarding@resend.dev}
-    depends_on:
-      db:
-        condition: service_healthy
-
-volumes:
-  pg_data:
+      FRONTEND_URL: "http://localhost:5173,http://localhost:5174,http://localhost:

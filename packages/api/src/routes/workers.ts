@@ -3,6 +3,7 @@
  *
  * Full CRUD for workers, scoped to the authenticated employer.
  *
+ * GET    /api/workers/cards    — workers with YTD aggregates + last run (for the cards UI)
  * GET    /api/workers          — list all workers for the employer
  * GET    /api/workers/:id      — get one worker
  * POST   /api/workers          — create a new worker record
@@ -11,8 +12,8 @@
  */
 import type { FastifyPluginAsync } from "fastify";
 import { db } from "../db/client.js";
-import { workers, employers } from "../db/schema.js";
-import { eq, and } from "drizzle-orm";
+import { workers, employers, payrollRuns, contracts } from "../db/schema.js";
+import { eq, and, inArray, gte, lte, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireEmployer } from "../lib/auth-guard.js";
 import { sendInviteEmail } from "../services/emailService.js";
@@ -29,9 +30,87 @@ const WorkerSchema = z.object({
   employment_status:  z.enum(["proposed", "active"]).default("active"),
   is_imss_registered: z.boolean().default(false),
   imss_nss:           z.string().optional().nullable(),
+  live_in:            z.boolean().default(false),
 });
 
 const plugin: FastifyPluginAsync = async (fastify) => {
+
+  // GET /api/workers/cards — workers + YTD aggregates + last payroll run + contract flag.
+  // Used by the workers list UI to populate the rich worker cards.
+  // Must be registered BEFORE /:id so Fastify doesn't treat "cards" as a UUID param.
+  fastify.get("/cards", async (req, reply) => {
+    if (!requireEmployer(req, reply)) return;
+    const employerId = (req as any).employerId as string;
+
+    const allWorkers = await db
+      .select()
+      .from(workers)
+      .where(eq(workers.employer_id, employerId));
+
+    if (allWorkers.length === 0) return reply.send([]);
+
+    const ids = allWorkers.map((w) => w.id);
+    const year      = new Date().getFullYear();
+    const yearStart = `${year}-01-01`;
+    const yearEnd   = `${year}-12-31`;
+
+    // YTD aggregates (current calendar year, any status)
+    const ytdRows = await db
+      .select({
+        worker_id:         payrollRuns.worker_id,
+        ytd_gross:         sql<string>`cast(sum(${payrollRuns.gross_wages}) as text)`,
+        ytd_isr:           sql<string>`cast(sum(${payrollRuns.isr_withholding}) as text)`,
+        ytd_employer_cost: sql<string>`cast(sum(${payrollRuns.employer_total_cost}) as text)`,
+        ytd_net_pay:       sql<string>`cast(sum(${payrollRuns.net_pay}) as text)`,
+        ytd_days_worked:   sql<number>`cast(sum(${payrollRuns.days_worked}) as integer)`,
+        run_count:         sql<number>`cast(count(*) as integer)`,
+      })
+      .from(payrollRuns)
+      .where(
+        and(
+          inArray(payrollRuns.worker_id, ids),
+          gte(payrollRuns.period_start, yearStart),
+          lte(payrollRuns.period_end, yearEnd),
+        )
+      )
+      .groupBy(payrollRuns.worker_id);
+
+    // Most recent payroll run per worker (any time, not just this year)
+    const allRuns = await db
+      .select({
+        worker_id:  payrollRuns.worker_id,
+        period_end: payrollRuns.period_end,
+        net_pay:    payrollRuns.net_pay,
+        status:     payrollRuns.status,
+      })
+      .from(payrollRuns)
+      .where(inArray(payrollRuns.worker_id, ids))
+      .orderBy(desc(payrollRuns.period_end));
+
+    // Pick first (most recent) per worker
+    const lastRunMap = new Map<string, (typeof allRuns)[number]>();
+    for (const run of allRuns) {
+      if (!lastRunMap.has(run.worker_id)) lastRunMap.set(run.worker_id, run);
+    }
+
+    // Contract existence
+    const contractRows = await db
+      .select({ worker_id: contracts.worker_id })
+      .from(contracts)
+      .where(inArray(contracts.worker_id, ids));
+    const contractSet = new Set(contractRows.map((c) => c.worker_id));
+
+    const ytdMap = new Map(ytdRows.map((r) => [r.worker_id, r]));
+
+    return reply.send(
+      allWorkers.map((w) => ({
+        ...w,
+        has_contract: contractSet.has(w.id),
+        last_run:     lastRunMap.get(w.id) ?? null,
+        ytd:          ytdMap.get(w.id) ?? null,
+      }))
+    );
+  });
 
   // GET /api/workers — list employer's workers
   fastify.get("/", async (req, reply) => {
@@ -99,7 +178,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     const employerId = (req as any).employerId as string;
     const [deleted] = await db
       .update(workers)
-      .set({ employment_status: "terminated", end_date: new Date(), updated_at: new Date() })
+      .set({ employment_status: "terminated" as any, end_date: new Date().toISOString().split("T")[0], updated_at: new Date() })
       .where(and(eq(workers.id, req.params.id), eq(workers.employer_id, employerId)))
       .returning();
     if (!deleted) return reply.status(404).send({ error: "Worker not found" });
@@ -107,8 +186,6 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   });
 
   // POST /api/workers/:id/invite
-  // Generates a claim token and stores the employer's contact info for the worker.
-  // The invite link (/claim/:token) is returned so the employer can share it.
   fastify.post<{ Params: { id: string }; Body: { contact: string } }>(
     "/:id/invite",
     async (req, reply) => {
@@ -143,7 +220,6 @@ const plugin: FastifyPluginAsync = async (fastify) => {
         .where(eq(workers.id, req.params.id))
         .returning();
 
-      // Resolve employer name for the email (best-effort)
       let employerName: string | null = null;
       try {
         const [emp] = await db
@@ -153,7 +229,6 @@ const plugin: FastifyPluginAsync = async (fastify) => {
         employerName = emp?.business_name ?? null;
       } catch { /* non-fatal */ }
 
-      // Send invite email if contact is an email address
       const appUrl = process.env.FRONTEND_URL ?? "http://localhost:5173";
       await sendInviteEmail({
         to:           body.contact.trim(),
@@ -171,8 +246,6 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       });
     }
   );
-
-
 };
 
 export default plugin;
