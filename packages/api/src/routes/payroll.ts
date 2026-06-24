@@ -22,6 +22,7 @@ const PeriodSchema = z.object({
   end_date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   days_worked:          z.number().int().positive(),
   holiday_days_worked:  z.number().int().min(0).default(0),
+  rest_days_worked:     z.number().int().min(0).default(0),
 });
 
 const plugin: FastifyPluginAsync = async (fastify) => {
@@ -52,6 +53,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       end_date:            body.end_date,
       days_worked:         body.days_worked,
       holiday_days_worked: body.holiday_days_worked,
+      rest_days_worked:    body.rest_days_worked,
     };
 
     const result = calculatePayroll(workerRecord, period, config.config_data as RatesConfig);
@@ -78,7 +80,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
 
     const period: PayPeriod = {
       start_date: body.start_date, end_date: body.end_date,
-      days_worked: body.days_worked, holiday_days_worked: body.holiday_days_worked,
+      days_worked: body.days_worked, holiday_days_worked: body.holiday_days_worked, rest_days_worked: body.rest_days_worked,
     };
 
     const result = calculatePayroll(workerRecord, period, config.config_data as RatesConfig);

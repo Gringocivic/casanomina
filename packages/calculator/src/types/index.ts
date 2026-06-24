@@ -147,6 +147,8 @@ export interface PayPeriod {
   days_worked: number;
   /** Mandatory holidays the worker actually worked — each earns 2× bonus on top of regular pay (LFT Art. 75). */
   holiday_days_worked?: number;
+  /** Rest days (non-holiday scheduled days off) the worker came in — each earns 2× daily salary (LFT Art. 73). */
+  rest_days_worked?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,6 +198,8 @@ export interface PayrollResult {
   gross_wages: number;
   /** Extra pay for mandatory holidays worked: daily_salary × 2 × holiday_days_worked (LFT Art. 75). */
   holiday_bonus: number;
+  /** Extra pay for rest days worked: daily_salary × 2 × rest_days_worked (LFT Art. 73). */
+  rest_day_bonus: number;
   imss: IMSSBreakdown;
   infonavit_employer_contribution: number;
 

@@ -155,7 +155,8 @@ export function Payroll() {
 
   // Holiday check: decisions for each holiday detected in the period
   // "paid_off" = took day off but still paid (default), "worked" = triple pay, "unpaid" = deduct
-  const [holidayDecisions, setHolidayDecisions] = useState<Record<string, "paid_off" | "worked" | "unpaid">>({});
+  const [holidayDecisions, setHolidayDecisions] = useState<Record<string, "paid_off" | "worked">>({});
+  const [restDaysWorked, setRestDaysWorked] = useState(0);
 
   const detectedHolidays = useMemo(() => {
     if (!periodForm.start_date || !periodForm.end_date) return [];
@@ -175,15 +176,14 @@ export function Payroll() {
   async function handlePreview() {
     if (!selectedWorker || !periodForm.start_date || !periodForm.days_worked) return;
     const workedHolidays = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "worked").length;
-    const unpaidHolidays = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "unpaid").length;
-    const adjDaysWorked  = Math.max(1, Number(periodForm.days_worked) - unpaidHolidays);
     setPreviewing(true);
     try {
       const result = await api.payroll.preview({
         worker_id:           selectedWorker,
         ...periodForm,
-        days_worked:         adjDaysWorked,
+        days_worked:         Number(periodForm.days_worked),
         holiday_days_worked: workedHolidays,
+        rest_days_worked:    restDaysWorked,
       });
       setPreview(result);
     } catch (e: any) {
@@ -196,14 +196,13 @@ export function Payroll() {
   async function handleApproveAndSave() {
     setSaving(true);
     const workedHolidays2 = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "worked").length;
-    const unpaidHolidays2 = detectedHolidays.filter((h) => (holidayDecisions[h.date] ?? "paid_off") === "unpaid").length;
-    const adjDaysWorked2  = Math.max(1, Number(periodForm.days_worked) - unpaidHolidays2);
     try {
       const run = await api.payroll.create({
         worker_id:           selectedWorker,
         ...periodForm,
-        days_worked:         adjDaysWorked2,
+        days_worked:         Number(periodForm.days_worked),
         holiday_days_worked: workedHolidays2,
+        rest_days_worked:    restDaysWorked,
       });
       const approved = await api.payroll.approve(run.id);
       setSavedRun(approved);
@@ -337,7 +336,7 @@ export function Payroll() {
               {lang === "en" ? "Worker" : "Trabajadora"}
             </label>
             <select className={fieldClass} value={selectedWorker}
-              onChange={(e) => { setSelectedWorker(e.target.value); setPreview(null); setSavedRun(null); }}>
+              onChange={(e) => { setSelectedWorker(e.target.value); setHolidayDecisions({}); setRestDaysWorked(0); setPreview(null); setSavedRun(null); }}>
               <option value="">{lang === "en" ? "Choose worker..." : "Elegir trabajadora..."}</option>
               {workers?.map((w: any) => (
                 <option key={w.id} value={w.id}>{w.full_name}</option>
@@ -351,7 +350,7 @@ export function Payroll() {
               </label>
               <input type="date" className={fieldClass}
                 value={periodForm.start_date}
-                onChange={(e) => { setPeriodForm(f => ({ ...f, start_date: e.target.value })); setHolidayDecisions({}); setPreview(null); }}
+                onChange={(e) => { setPeriodForm(f => ({ ...f, start_date: e.target.value })); setHolidayDecisions({}); setRestDaysWorked(0); setPreview(null); }}
               />
             </div>
             <div>
@@ -360,7 +359,7 @@ export function Payroll() {
               </label>
               <input type="date" className={fieldClass}
                 value={periodForm.end_date}
-                onChange={(e) => { setPeriodForm(f => ({ ...f, end_date: e.target.value })); setHolidayDecisions({}); setPreview(null); }}
+                onChange={(e) => { setPeriodForm(f => ({ ...f, end_date: e.target.value })); setHolidayDecisions({}); setRestDaysWorked(0); setPreview(null); }}
               />
             </div>
           </div>
@@ -388,16 +387,16 @@ export function Payroll() {
               </div>
               <p className="text-xs text-amber-700">
                 {lang === "en"
-                  ? "What did the worker do on each holiday? Default: no change to pay."
-                  : "¿Qué hizo la trabajadora en cada festivo? Sin cambio al pago por defecto."}
+                  ? "Mandatory holidays are always paid. Did the worker come in anyway?"
+                  : "Los días festivos siempre son pagados. ¿La trabajadora fue de todas formas?"}
               </p>
               {detectedHolidays.map((h) => {
                 const decision = holidayDecisions[h.date] ?? "paid_off";
-                const btn = (val: "paid_off" | "worked" | "unpaid", label: string, note: string) => (
+                const btn = (val: "paid_off" | "worked", label: string, note: string) => (
                   <button
                     type="button"
                     onClick={() => { setHolidayDecisions(d => ({ ...d, [h.date]: val })); setPreview(null); }}
-                    className={`flex-1 text-center px-2 py-2 rounded-xl border-2 text-xs font-medium transition-colors ${
+                    className={`flex-1 text-center px-3 py-2.5 rounded-xl border-2 text-xs font-medium transition-colors ${
                       decision === val
                         ? "border-terracotta-500 bg-terracotta-50 text-terracotta-700"
                         : "border-gray-200 text-gray-500 hover:border-gray-300 bg-white"
@@ -422,9 +421,6 @@ export function Payroll() {
                       {btn("worked",
                         lang === "en" ? "Worked it" : "Trabajó",
                         lang === "en" ? "+triple pay" : "+pago triple")}
-                      {btn("unpaid",
-                        lang === "en" ? "Didn't work" : "No trabajó",
-                        lang === "en" ? "−1 day" : "−1 día")}
                     </div>
                   </div>
                 );
@@ -434,13 +430,49 @@ export function Payroll() {
                   <AlertTriangle size={14} className="text-terracotta-500 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-terracotta-700">
                     {lang === "en"
-                      ? "Triple pay will be added: 2× daily salary per holiday worked (LFT Art. 75)."
-                      : "Se agregará pago triple: 2× salario diario por festivo trabajado (LFT Art. 75)."}
+                      ? "Triple pay applies: 2x daily salary bonus added per holiday worked (LFT Art. 75)."
+                      : "Aplica pago triple: bono de 2x salario diario por festivo trabajado (LFT Art. 75)."}
                   </p>
                 </div>
               )}
             </div>
           )}
+
+          {/* ── Rest days worked ───────────────────────────────── */}
+          <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-800">
+                  {lang === "en" ? "Rest days worked" : "Días de descanso trabajados"}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {lang === "en"
+                    ? "Days the worker came in on their scheduled day off — earns double pay (LFT Art. 73)."
+                    : "Días que la trabajadora vino en su día de descanso — genera pago doble (LFT Art. 73)."}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => { setRestDaysWorked(n => Math.max(0, n - 1)); setPreview(null); }}
+                  className="w-8 h-8 rounded-full border-2 border-gray-200 text-gray-500 hover:border-gray-400 flex items-center justify-center font-bold text-lg"
+                >−</button>
+                <span className="w-6 text-center font-semibold text-gray-800">{restDaysWorked}</span>
+                <button
+                  type="button"
+                  onClick={() => { setRestDaysWorked(n => n + 1); setPreview(null); }}
+                  className="w-8 h-8 rounded-full border-2 border-gray-200 text-gray-500 hover:border-gray-400 flex items-center justify-center font-bold text-lg"
+                >+</button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Absence note ───────────────────────────────────── */}
+          <p className="text-xs text-gray-400">
+            {lang === "en"
+              ? "If the worker missed a scheduled day (not a holiday), reduce the days worked number above."
+              : "Si la trabajadora faltó un día ordinario (que no sea festivo), reduce el número de días trabajados."}
+          </p>
 
           <Button onClick={handlePreview} loading={previewing}
             disabled={!selectedWorker || !periodForm.start_date || !periodForm.days_worked}>
@@ -463,6 +495,11 @@ export function Payroll() {
               {preview.holiday_bonus > 0 && (
                 <p className="text-xs text-amber-600 mt-1 font-medium">
                   {lang === "en" ? `incl. $${preview.holiday_bonus.toFixed(2)} holiday bonus` : `incl. $${preview.holiday_bonus.toFixed(2)} bono festivo`}
+                </p>
+              )}
+              {preview.rest_day_bonus > 0 && (
+                <p className="text-xs text-blue-500 mt-1 font-medium">
+                  {lang === "en" ? `incl. $${preview.rest_day_bonus.toFixed(2)} rest day bonus` : `incl. $${preview.rest_day_bonus.toFixed(2)} bono descanso`}
                 </p>
               )}
             </div>
