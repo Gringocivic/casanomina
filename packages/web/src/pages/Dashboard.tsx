@@ -113,22 +113,55 @@ function nextIsrDue(today: Date): { due: Date; period: string } {
   return { due, period: MONTHS_ES[mo] };
 }
 
-/** Next worker payroll due date based on pay_frequency and last period end. */
-function nextWorkerPayDate(worker: any): Date {
-  const freq = worker.pay_frequency ?? "weekly";
-  const freqDays: Record<string, number> = {
-    weekly: 7,
-    biweekly: 14,
-    "semi-monthly": 15,
-    monthly: 30,
-  };
-  const days = freqDays[freq] ?? 7;
-  const lastEnd = worker.last_run?.period_end;
-  if (lastEnd) {
-    return addDays(isoToDate(lastEnd), days);
+/** Next worker payroll due date. Uses payroll_day if set, otherwise falls back to heuristic. */
+function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
+  const freq: string = worker.pay_frequency ?? "weekly";
+  const payDay: number | null | undefined = worker.payroll_day;
+
+  // ── Legacy heuristic (no payroll_day set) ─────────────────────────
+  if (payDay == null) {
+    const freqDays: Record<string, number> = { weekly: 7, biweekly: 14, "semi-monthly": 15, monthly: 30 };
+    const base = worker.last_run?.period_end
+      ? isoToDate(worker.last_run.period_end)
+      : isoToDate(worker.start_date);
+    return addDays(base, freqDays[freq] ?? 7);
   }
-  // No runs yet: from start_date
-  return addDays(isoToDate(worker.start_date), days);
+
+  // ── Weekly: next occurrence of payDay (0=Mon…6=Sun) after today ───
+  if (freq === "weekly") {
+    const tomorrow = addDays(today, 1);
+    const tDow = (tomorrow.getDay() + 6) % 7; // convert JS Sun=0 → Mon=0
+    const daysUntil = (payDay - tDow + 7) % 7;
+    return addDays(tomorrow, daysUntil);
+  }
+
+  // ── Biweekly: anchor on start_date, pay every 14 days on payDay ───
+  if (freq === "biweekly") {
+    const start = isoToDate(worker.start_date);
+    const sDow = (start.getDay() + 6) % 7;
+    const offset = ((payDay - sDow + 7) % 7) || 14; // first pay date offset from start
+    const firstPay = addDays(start, offset);
+    const elapsed = diffDays(firstPay, today);
+    if (elapsed < 0) return firstPay;
+    return addDays(firstPay, Math.ceil(elapsed / 14) * 14);
+  }
+
+  // ── Monthly: payDay = day of month ────────────────────────────────
+  if (freq === "monthly") {
+    const dom = payDay;
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), dom);
+    if (thisMonth > today) return thisMonth;
+    return new Date(today.getFullYear(), today.getMonth() + 1, dom);
+  }
+
+  // ── Semi-monthly: 15th and last day of each month ─────────────────
+  const yr = today.getFullYear();
+  const mo = today.getMonth();
+  const fifteenth = new Date(yr, mo, 15);
+  const lastDay   = new Date(yr, mo + 1, 0);
+  if (fifteenth > today) return fifteenth;
+  if (lastDay > today)   return lastDay;
+  return new Date(yr, mo + 1, 15);
 }
 
 /** Employer monthly IMSS cost for one worker (×30 days). */

@@ -5,7 +5,7 @@
  * Shows full itemized breakdown so the employer can verify every number
  * before approving. Includes payroll history for the selected worker.
  */
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { api, BASE } from "../lib/api";
 import { useApi } from "../hooks/useApi";
@@ -90,7 +90,10 @@ function statusLabel(status: string, lang: "en" | "es") {
 export function Payroll() {
   const { lang } = useLanguage();
   const { getToken } = useAuth();
-  const { data: workers } = useApi(() => api.workers.list(), []);
+  const { data: workers } = useApi(async () => {
+    try { return await api.workers.cards(); }
+    catch { return api.workers.list(); }
+  }, []);
 
   // Pre-select worker if ?worker=<id> is in the URL (from dashboard "Run" CTA)
   const preselectedWorker = new URLSearchParams(window.location.search).get("worker") ?? "";
@@ -101,12 +104,52 @@ export function Payroll() {
     end_date: "",
     days_worked: "",
   });
+
   const [preview, setPreview] = useState<any>(null);
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedRun, setSavedRun] = useState<any>(null);
   const [markingPaid, setMarkingPaid] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  /** Derive suggested period dates from a worker's cadence and last run. */
+  const selectedWorkerObj = useMemo(
+    () => workers?.find((w: any) => w.id === selectedWorker),
+    [workers, selectedWorker]
+  );
+
+  useEffect(() => {
+    if (!selectedWorkerObj) return;
+    const w = selectedWorkerObj;
+    const freq: string = w.pay_frequency ?? "weekly";
+    const freqDays: Record<string, number> = { weekly: 7, biweekly: 14, "semi-monthly": 15, monthly: 30 };
+    const periodLen = freqDays[freq] ?? 7;
+
+    // period_start = day after last period_end, or start_date if no runs
+    const lastEnd = w.last_run?.period_end;
+    let startDate: Date;
+    if (lastEnd) {
+      const [y, mo, d] = lastEnd.split("-").map(Number);
+      startDate = new Date(y, mo - 1, d + 1);
+    } else {
+      const [y, mo, d] = w.start_date.split("-").map(Number);
+      startDate = new Date(y, mo - 1, d);
+    }
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + periodLen - 1);
+
+    const iso = (d: Date) => d.toISOString().split("T")[0];
+    const daysWorked = Math.round((w.days_per_week ?? 6) * (periodLen / 7));
+
+    setPeriodForm({
+      start_date: iso(startDate),
+      end_date:   iso(endDate),
+      days_worked: String(daysWorked),
+    });
+    setPreview(null);
+    setSavedRun(null);
+  }, [selectedWorkerObj]);
+
   const [historyKey, setHistoryKey] = useState(0);
 
   const { data: history, loading: historyLoading } = useApi(

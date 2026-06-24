@@ -23,7 +23,7 @@ const WorkerSchema = z.object({
   start_date:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   daily_salary:       z.union([z.string(), z.number()]).transform(String),
   wage_zone:          z.enum(["general", "northern_border"]).default("general"),
-  pay_frequency:      z.enum(["daily", "weekly", "biweekly", "monthly"]).default("weekly"),
+  pay_frequency:      z.enum(["daily", "weekly", "biweekly", "semi-monthly", "monthly"]).default("weekly"),
   days_per_week:      z.number().int().min(1).max(7).default(6),
   role:               z.string().optional().nullable(),
   curp:               z.string().optional().nullable(),
@@ -31,6 +31,7 @@ const WorkerSchema = z.object({
   is_imss_registered: z.boolean().default(false),
   imss_nss:           z.string().optional().nullable(),
   live_in:            z.boolean().default(false),
+  payroll_day:        z.number().int().min(0).max(31).optional().nullable(),
 });
 
 const plugin: FastifyPluginAsync = async (fastify) => {

@@ -114,9 +114,10 @@ export function WorkerOnboarding() {
   const [terms, setTerms] = useState({
     daily_salary:  String(MIN_WAGE_GENERAL),
     wage_zone:     "general" as "general" | "northern_border",
-    pay_frequency: "weekly" as "weekly" | "biweekly" | "monthly",
+    pay_frequency: "weekly" as "weekly" | "biweekly" | "semi-monthly" | "monthly",
     days_per_week: "6",
     live_in:       false,
+    payroll_day:   4,  // 0=Mon…6=Sun for weekly/biweekly; 1-28 for monthly; ignored for semi-monthly
   });
 
   // Step 4 — IMSS
@@ -159,6 +160,7 @@ export function WorkerOnboarding() {
         pay_frequency: terms.pay_frequency,
         days_per_week: Number(terms.days_per_week),
         live_in:       terms.live_in,
+        payroll_day:   terms.pay_frequency === "semi-monthly" ? null : terms.payroll_day,
       });
       setWorkerId(w.id);
       setStep(3);
@@ -209,7 +211,8 @@ export function WorkerOnboarding() {
   function freqLabel(f: string) {
     const map: Record<string, Record<string, string>> = {
       weekly:   { en: "Weekly",   es: "Semanal" },
-      biweekly: { en: "Bi-weekly", es: "Quincenal" },
+      biweekly:       { en: "Bi-weekly",    es: "Quincenal" },
+      "semi-monthly": { en: "Semi-monthly", es: "Quincenal (15 y último)" },
       monthly:  { en: "Monthly",  es: "Mensual" },
     };
     return map[f]?.[lang] ?? f;
@@ -345,9 +348,15 @@ export function WorkerOnboarding() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Pay Frequency" : "Frecuencia de Pago"}</label>
-                <select className={fieldClass} value={terms.pay_frequency} onChange={(e) => setTerms({ ...terms, pay_frequency: e.target.value as any })}>
+                <select className={fieldClass} value={terms.pay_frequency} onChange={(e) => {
+                  const freq = e.target.value as any;
+                  // Reset payroll_day to sensible default when frequency changes
+                  const defaultDay = freq === "monthly" ? 30 : freq === "semi-monthly" ? 0 : 4;
+                  setTerms({ ...terms, pay_frequency: freq, payroll_day: defaultDay });
+                }}>
                   <option value="weekly">{lang === "en" ? "Weekly" : "Semanal"}</option>
-                  <option value="biweekly">{lang === "en" ? "Bi-weekly" : "Quincenal"}</option>
+                  <option value="biweekly">{lang === "en" ? "Bi-weekly (every 2 weeks)" : "Catorcenal (cada 2 semanas)"}</option>
+                  <option value="semi-monthly">{lang === "en" ? "Semi-monthly (15th & last day)" : "Quincenal (15 y último día)"}</option>
                   <option value="monthly">{lang === "en" ? "Monthly" : "Mensual"}</option>
                 </select>
               </div>
@@ -360,6 +369,78 @@ export function WorkerOnboarding() {
                 </select>
               </div>
             </div>
+
+
+            {/* Pay day picker */}
+            {(terms.pay_frequency === "weekly" || terms.pay_frequency === "biweekly") && (
+              <div>
+                <label className={labelClass}>
+                  {lang === "en" ? "Pay day" : "Día de pago"}
+                </label>
+                <div className="grid grid-cols-7 gap-1">
+                  {(lang === "en"
+                    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                    : ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+                  ).map((label, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setTerms({ ...terms, payroll_day: i })}
+                      className={`py-2 rounded-xl text-xs font-medium border-2 transition-colors ${
+                        terms.payroll_day === i
+                          ? "border-terracotta-500 bg-terracotta-50 text-terracotta-700"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {lang === "en" ? "Worker gets paid every " : "La trabajadora cobra cada "}
+                  <span className="font-medium text-gray-600">
+                    {(lang === "en"
+                      ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+                      : ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"]
+                    )[terms.payroll_day]}
+                  </span>
+                  {terms.pay_frequency === "biweekly" && (lang === "en" ? " (every other week)" : " (cada dos semanas)")}
+                </p>
+              </div>
+            )}
+
+            {terms.pay_frequency === "monthly" && (
+              <div>
+                <label className={labelClass}>
+                  {lang === "en" ? "Pay day (day of month)" : "Día de pago (día del mes)"}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={1}
+                    max={28}
+                    className={`w-24 ${fieldClass}`}
+                    value={terms.payroll_day}
+                    onChange={(e) => setTerms({ ...terms, payroll_day: Math.min(28, Math.max(1, Number(e.target.value))) })}
+                  />
+                  <p className="text-xs text-gray-400">
+                    {lang === "en"
+                      ? "Day 1–28 (max 28 to avoid month-end issues)"
+                      : "Día 1–28 (máx 28 para evitar problemas de fin de mes)"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {terms.pay_frequency === "semi-monthly" && (
+              <div className="p-3 bg-sage-50 border border-sage-100 rounded-xl">
+                <p className="text-xs text-sage-700">
+                  {lang === "en"
+                    ? "Semi-monthly: paid on the 15th and last day of each month."
+                    : "Quincenal: pagos el día 15 y el último día de cada mes."}
+                </p>
+              </div>
+            )}
 
             {/* Live-in / Live-out */}
             <div>
@@ -446,6 +527,18 @@ export function WorkerOnboarding() {
                 value={`$${Number(terms.daily_salary).toFixed(2)} MXN`}
               />
               <TermRow label={lang === "en" ? "Pay frequency" : "Frecuencia de pago"} value={freqLabel(terms.pay_frequency)} />
+              {terms.pay_frequency !== "semi-monthly" && terms.payroll_day != null && (
+                <TermRow
+                  label={lang === "en" ? "Pay day" : "Día de pago"}
+                  value={
+                    terms.pay_frequency === "monthly"
+                      ? (lang === "en" ? `Day ${terms.payroll_day} of each month` : `Día ${terms.payroll_day} de cada mes`)
+                      : (lang === "en"
+                          ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][terms.payroll_day]
+                          : ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][terms.payroll_day])
+                  }
+                />
+              )}
               <TermRow
                 label={lang === "en" ? "Days per week" : "Días por semana"}
                 value={`${terms.days_per_week} ${lang === "en" ? "days" : "días"}`}

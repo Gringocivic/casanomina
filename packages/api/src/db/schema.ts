@@ -12,7 +12,7 @@ import {
 import { relations } from "drizzle-orm";
 
 export const wageZoneEnum = pgEnum("wage_zone", ["general", "northern_border"]);
-export const payFrequencyEnum = pgEnum("pay_frequency", ["daily", "weekly", "biweekly", "monthly"]);
+export const payFrequencyEnum = pgEnum("pay_frequency", ["daily", "weekly", "biweekly", "semi-monthly", "monthly"]);
 export const payrollStatusEnum = pgEnum("payroll_status", ["draft", "approved", "paid", "cancelled"]);
 
 // Accounts & employment-linking enums (see docs/ACCOUNTS_AND_PORTALS_PLAN.md).
@@ -96,6 +96,7 @@ export const workers = pgTable("workers", {
   imss_nss:           varchar("imss_nss", { length: 11 }),  // IMSS affiliation #
   is_imss_registered: boolean("is_imss_registered").notNull().default(false),
   live_in:            boolean("live_in").notNull().default(false),      // live-in vs. live-out
+  payroll_day:        integer("payroll_day"),                              // 0=Mon…6=Sun for weekly/biweekly; 1-28 for monthly
   notes:              text("notes"),
   created_at:         timestamp("created_at").notNull().defaultNow(),
   updated_at:         timestamp("updated_at").notNull().defaultNow(),
