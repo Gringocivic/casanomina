@@ -26,7 +26,7 @@ const WorkerSchema = z.object({
   days_per_week:      z.number().int().min(1).max(7).default(6),
   role:               z.string().optional().nullable(),
   curp:               z.string().optional().nullable(),
-  employment_status:  z.enum(["active", "inactive", "terminated"]).default("active"),
+  employment_status:  z.enum(["proposed", "active"]).default("active"),
   is_imss_registered: z.boolean().default(false),
   imss_nss:           z.string().optional().nullable(),
 });
@@ -66,7 +66,12 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     }
     const [created] = await db
       .insert(workers)
-      .values({ ...parsed.data, employer_id: employerId })
+      .values({
+        ...parsed.data,
+        employer_id:       employerId,
+        initiated_by:      "employer",
+        employment_status: "active",
+      })
       .returning();
     return reply.status(201).send(created);
   });
