@@ -210,16 +210,18 @@ function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
   return new Date(yr, mo + 1, 15);
 }
 
-/** Employer monthly IMSS cost for one worker (×30 days). */
+/** Employer monthly IMSS cost for one worker — scaled by scheduled days/month. */
 function monthlyImssEmployer(worker: any): number {
+  const daysPerWeek = worker.days_per_week ?? 6;
+  const daysPerMonth = daysPerWeek * (52 / 12); // same formula as wages
   const todayIso = new Date().toISOString().split("T")[0];
   const years = calculateYearsOfService(worker.start_date, todayIso);
   const sbc = calculateSBC(parseFloat(worker.daily_salary), RATES_2026, years);
   const imss = calculateIMSSContributions(sbc, RATES_2026);
-  return imss.total_employer * 30;
+  return imss.total_employer * daysPerMonth;
 }
 
-/** Employer bimestral IMSS estimate (×60 days). */
+/** Employer bimestral IMSS estimate — 2 months of scheduled days. */
 function bimestralImssEmployer(worker: any): number {
   return monthlyImssEmployer(worker) * 2;
 }
@@ -247,8 +249,9 @@ function monthlyEmployerCost(worker: any): number {
   const sbc = calculateSBC(dailySalary, RATES_2026, years);
   const imss = calculateIMSSContributions(sbc, RATES_2026);
   const infonavit = calculateINFONAVIT(sbc, RATES_2026);
-  const monthlyImss = imss.total_employer * 30;
-  return monthlyWage + monthlyImss + infonavit * 30;
+  const daysPerMonth = daysPerWeek * (52 / 12);
+  const monthlyImss = imss.total_employer * daysPerMonth;
+  return monthlyWage + monthlyImss + infonavit * daysPerMonth;
 }
 
 /** Aguinaldo deadline: Dec 20 of current year; next year if already past. */
@@ -320,14 +323,16 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       const sbc = calculateSBC(dailySalary, RATES_2026, years);
       const imss = calculateIMSSContributions(sbc, RATES_2026);
       const infonavit = calculateINFONAVIT(sbc, RATES_2026);
+      const daysPerWeekW = w.days_per_week ?? 6;
+      const daysPerBimester = daysPerWeekW * (52 / 12) * 2;
       return {
         id: w.id,
         name: w.full_name,
         daily_salary: dailySalary,
         sbc,
-        employer_imss: imss.total_employer * 60,
-        worker_imss: imss.total_worker * 60,
-        infonavit: infonavit * 60,
+        employer_imss: imss.total_employer * daysPerBimester,
+        worker_imss: imss.total_worker * daysPerBimester,
+        infonavit: infonavit * daysPerBimester,
         hasRuns: !!w.last_run,
       };
     });
