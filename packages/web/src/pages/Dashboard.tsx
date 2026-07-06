@@ -63,7 +63,7 @@ interface Obligation {
   isOverdue: boolean;
   workerId?: string;
   workerName?: string;
-  detail?: string;
+  detail?: { en: string; es: string };
   workerDetails?: WorkerDetailRow[];
   periodStart?: Date;
   periodEnd?: Date;
@@ -352,7 +352,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
         employer_imss: imss.total_employer * daysPerBimester,
         worker_imss: imss.total_worker * daysPerBimester,
         infonavit: infonavit * daysPerBimester,
-        hasRuns: !!w.last_run,
+        hasRuns: (w.ytd?.run_count ?? 0) > 0,
       };
     });
 
@@ -366,7 +366,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       amount: totalImss,
       isEstimate: true,
       isOverdue: daysUntil < 0,
-      detail: "Pagar en IDSE / SIPARE antes del día 17.",
+      detail: { en: "Pay via IDSE / SIPARE by the 17th.", es: "Pagar en IDSE / SIPARE antes del día 17." },
       workerDetails,
       periodStart,
       periodEnd,
@@ -384,7 +384,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       name: w.full_name,
       daily_salary: parseFloat(w.daily_salary ?? "0"),
       isr_monthly: monthlyIsrEstimate(w),
-      hasRuns: !!w.last_run,
+      hasRuns: (w.ytd?.run_count ?? 0) > 0,
     }));
 
     obligations.push({
@@ -397,7 +397,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       amount: totalIsrMonthly,
       isEstimate: true,
       isOverdue: daysUntil < 0,
-      detail: "Declarar y pagar vía SIPARE o declaración mensual en el SAT.",
+      detail: { en: "File and pay via monthly SAT declaration.", es: "Declarar y pagar vía SIPARE o declaración mensual en el SAT." },
       workerDetails,
       periodStart,
       periodEnd,
@@ -420,7 +420,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
         daily_salary: dailySalary,
         accrued_days: daysThisYear,
         aguinaldo_amount: calculateAguinaldo(dailySalary, daysThisYear, RATES_2026),
-        hasRuns: !!w.last_run,
+        hasRuns: (w.ytd?.run_count ?? 0) > 0,
       };
     });
 
@@ -434,7 +434,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       amount: accrued,
       isEstimate: true,
       isOverdue: daysUntil < 0,
-      detail: "Vence el 20 de diciembre. Mínimo 15 días de salario (LFT Art. 87).",
+      detail: { en: "Due Dec 20. Minimum 15 days salary (LFT Art. 87).", es: "Vence el 20 de diciembre. Mínimo 15 días de salario (LFT Art. 87)." },
       workerDetails,
       periodStart: new Date(today.getFullYear(), 0, 1),
       periodEnd: today,
@@ -680,7 +680,7 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
 
       {/* Detail note + data source */}
       {ob.detail && (
-        <p className="text-xs text-gray-500 border-t border-gray-100 pt-2">{ob.detail}</p>
+        <p className="text-xs text-gray-500 border-t border-gray-100 pt-2">{ob.detail[lang]}</p>
       )}
       <p className="text-xs text-gray-400 italic">{dataSourceNote}</p>
     </div>
@@ -826,7 +826,7 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             {ob.workerDetails?.length ? (
               <GovDetailPanel ob={ob} lang={lang} />
             ) : ob.detail ? (
-              <p className="text-xs text-gray-600">{ob.detail}</p>
+              <p className="text-xs text-gray-600">{ob.detail[lang]}</p>
             ) : null}
           </div>
         </div>
