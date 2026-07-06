@@ -384,7 +384,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       name: w.full_name,
       daily_salary: parseFloat(w.daily_salary ?? "0"),
       isr_monthly: monthlyIsrEstimate(w),
-      hasRuns: (w.ytd?.run_count ?? 0) > 0,
+      hasRuns: !!(w.last_run?.period_end && isoToDate(w.last_run.period_end) >= periodStart),
     }));
 
     obligations.push({
