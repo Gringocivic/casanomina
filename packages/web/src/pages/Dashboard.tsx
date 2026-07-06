@@ -27,6 +27,7 @@ import {
   calculateIMSSContributions,
   calculateINFONAVIT,
   calculateAguinaldo,
+  calculateISR,
   calculateYearsOfService,
   daysBetweenInclusive,
 } from "@casanomina/calculator";
@@ -239,17 +240,21 @@ function bimestralTotalPayable(worker: any): number {
   return (imss.total_employer + imss.total_worker + infonavit) * daysPerBimester;
 }
 
-/** ISR withheld estimate per month. */
+/** ISR withheld estimate per month.
+ *  - If payroll runs exist: averages ytd_isr over months elapsed (accurate).
+ *  - If no runs yet: estimates from daily salary using the ISR tariff tables (projection).
+ */
 function monthlyIsrEstimate(worker: any): number {
   const ytdIsr = parseFloat(worker.ytd?.ytd_isr ?? "0");
-  const today = new Date();
-  const startOfYear = new Date(today.getFullYear(), 0, 1);
-  const monthsElapsed = Math.max(1,
-    (today.getFullYear() - startOfYear.getFullYear()) * 12 +
-    today.getMonth() - startOfYear.getMonth() + 1
-  );
-  if (ytdIsr > 0) return ytdIsr / monthsElapsed;
-  return 0;
+  if (ytdIsr > 0) {
+    const today = new Date();
+    const monthsElapsed = Math.max(1, today.getMonth() + 1);
+    return ytdIsr / monthsElapsed;
+  }
+  // Fallback: compute from salary using the same ISR tables used at payroll time.
+  const dailySalary = parseFloat(worker.daily_salary ?? "0");
+  if (dailySalary <= 0) return 0;
+  return calculateISR(dailySalary, 30, RATES_2026).period_isr_withholding;
 }
 
 /** Total monthly employer outlay estimate for one worker. */
