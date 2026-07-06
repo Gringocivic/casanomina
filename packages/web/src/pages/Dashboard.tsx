@@ -496,9 +496,12 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                   {lang === "es" ? "IMSS patrón" : "Employer IMSS"}
                 </th>
                 <th className="text-right py-1 pr-3 font-medium">
-                  {lang === "es" ? "IMSS trabajadora" : "Worker IMSS"}
+                  {lang === "es" ? "IMSS trab. (retener)" : "Worker IMSS (withheld)"}
                 </th>
-                <th className="text-right py-1 font-medium">INFONAVIT</th>
+                <th className="text-right py-1 pr-3 font-medium">INFONAVIT</th>
+                <th className="text-right py-1 font-medium text-terracotta-600">
+                  {lang === "es" ? "Total patrón" : "Your total"}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -517,23 +520,29 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                   </td>
                   <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.sbc)}</td>
                   <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.employer_imss)}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-500 italic">{fmtMoney(w.worker_imss)}</td>
-                  <td className="text-right py-1.5 text-gray-600">{fmtMoney(w.infonavit)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-400 italic">{fmtMoney(w.worker_imss)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.infonavit)}</td>
+                  <td className="text-right py-1.5 font-semibold text-gray-800">
+                    {fmtMoney((w.employer_imss ?? 0) + (w.infonavit ?? 0))}
+                  </td>
                 </tr>
               ))}
               {ob.workerDetails.length > 1 && (
-                <tr className="border-t border-gray-200 font-semibold">
+                <tr className="border-t-2 border-gray-200 font-semibold bg-gray-50/50">
                   <td className="py-1.5 pr-3 text-gray-700" colSpan={2}>
-                    {lang === "es" ? "Total patrón (tu pago)" : "Your total (employer)"}
+                    {lang === "es" ? "Totales" : "Totals"}
                   </td>
                   <td className="text-right py-1.5 pr-3 text-gray-800">
                     {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.employer_imss ?? 0), 0))}
                   </td>
-                  <td className="text-right py-1.5 pr-3 text-gray-400 italic text-xs font-normal">
-                    ({lang === "es" ? "retenido" : "withheld"})
+                  <td className="text-right py-1.5 pr-3 text-gray-400 italic font-normal">
+                    {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.worker_imss ?? 0), 0))}
                   </td>
-                  <td className="text-right py-1.5 text-gray-800">
+                  <td className="text-right py-1.5 pr-3 text-gray-800">
                     {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.infonavit ?? 0), 0))}
+                  </td>
+                  <td className="text-right py-1.5 text-terracotta-700 font-bold">
+                    {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.employer_imss ?? 0) + (w.infonavit ?? 0), 0))}
                   </td>
                 </tr>
               )}
@@ -541,7 +550,7 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
           </table>
           <p className="text-xs text-gray-400 mt-1 italic">
             {lang === "es"
-              ? "La cuota de la trabajadora se descuenta de su salario; la del patrón y el INFONAVIT los paga usted."
+              ? "IMSS trabajadora se descuenta de su salario; IMSS patrón e INFONAVIT los paga usted."
               : "Worker IMSS is deducted from their wages; employer IMSS and INFONAVIT are your cost."}
           </p>
         </div>
