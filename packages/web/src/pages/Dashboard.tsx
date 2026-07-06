@@ -39,6 +39,7 @@ interface WorkerDetailRow {
   id: string;
   name: string;
   daily_salary: number;
+  days_per_week?: number;
   sbc?: number;
   employer_imss?: number;
   worker_imss?: number;
@@ -329,6 +330,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
         id: w.id,
         name: w.full_name,
         daily_salary: dailySalary,
+        days_per_week: daysPerWeekW,
         sbc,
         employer_imss: imss.total_employer * daysPerBimester,
         worker_imss: imss.total_worker * daysPerBimester,
@@ -502,10 +504,15 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             <tbody>
               {ob.workerDetails.map((w) => (
                 <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="py-1.5 pr-3 font-medium text-gray-800">
-                    {w.name}
+                  <td className="py-1.5 pr-3">
+                    <span className="font-medium text-gray-800">{w.name}</span>
                     {!w.hasRuns && (
                       <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Estimado" : "Estimated"}>~</span>
+                    )}
+                    {w.days_per_week != null && (
+                      <span className="ml-1.5 text-xs text-gray-400">
+                        {w.days_per_week}d/{lang === "es" ? "sem" : "wk"}
+                      </span>
                     )}
                   </td>
                   <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.sbc)}</td>
