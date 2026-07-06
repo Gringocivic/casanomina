@@ -384,7 +384,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       name: w.full_name,
       daily_salary: parseFloat(w.daily_salary ?? "0"),
       isr_monthly: monthlyIsrEstimate(w),
-      hasRuns: parseFloat(w.ytd?.ytd_isr ?? "0") > 0,
+      hasRuns: !!w.last_run,
     }));
 
     obligations.push({
@@ -620,11 +620,12 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                     )}
                   </td>
                   <td className="text-right py-1.5 text-gray-600">
-                    {w.isr_monthly && w.isr_monthly > 0 ? fmtMoney(w.isr_monthly) : (
-                      <span className="text-gray-400 italic">
-                        {lang === "es" ? "sin datos" : "no data"}
-                      </span>
-                    )}
+                    {w.isr_monthly && w.isr_monthly > 0
+                      ? fmtMoney(w.isr_monthly)
+                      : w.hasRuns
+                        ? <span className="text-gray-500" title={lang === "es" ? "Subsidio al empleo cubre el ISR" : "Employment subsidy covers ISR"}>$0.00</span>
+                        : <span className="text-gray-400 italic">{lang === "es" ? "estimado" : "~estimated"}</span>
+                    }
                   </td>
                 </tr>
               ))}
