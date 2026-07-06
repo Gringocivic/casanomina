@@ -222,9 +222,21 @@ function monthlyImssEmployer(worker: any): number {
   return imss.total_employer * daysPerMonth;
 }
 
-/** Employer bimestral IMSS estimate — 2 months of scheduled days. */
+/** Employer bimestral IMSS estimate — 2 months of scheduled days (employer share only). */
 function bimestralImssEmployer(worker: any): number {
   return monthlyImssEmployer(worker) * 2;
+}
+
+/** Total bimestral amount payable to IMSS — employer IMSS + worker IMSS + INFONAVIT. */
+function bimestralTotalPayable(worker: any): number {
+  const daysPerWeek = worker.days_per_week ?? 6;
+  const daysPerBimester = daysPerWeek * (52 / 12) * 2;
+  const todayIso = new Date().toISOString().split("T")[0];
+  const years = calculateYearsOfService(worker.start_date, todayIso);
+  const sbc = calculateSBC(parseFloat(worker.daily_salary), RATES_2026, years);
+  const imss = calculateIMSSContributions(sbc, RATES_2026);
+  const infonavit = calculateINFONAVIT(sbc, RATES_2026);
+  return (imss.total_employer + imss.total_worker + infonavit) * daysPerBimester;
 }
 
 /** ISR withheld estimate per month. */
@@ -315,7 +327,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
   if (imssWorkers.length > 0) {
     const { due: imssDue, period, periodStart, periodEnd } = nextImssDue(today);
     const daysUntil = diffDays(today, imssDue);
-    const totalImss = imssWorkers.reduce((s, w) => s + bimestralImssEmployer(w), 0);
+    const totalImss = imssWorkers.reduce((s, w) => s + bimestralTotalPayable(w), 0);
 
     const workerDetails: WorkerDetailRow[] = imssWorkers.map((w) => {
       const dailySalary = parseFloat(w.daily_salary ?? "0");
@@ -342,7 +354,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
     obligations.push({
       id: "imss-bimestral",
       type: "imss",
-      label: "IMSS Bimestral",
+      label: "IMSS/INFONAVIT Bimestral",
       sublabel: period,
       dueDate: imssDue,
       daysUntil,
@@ -553,6 +565,29 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
               ? "IMSS trabajadora se descuenta de su salario; IMSS patrón e INFONAVIT los paga usted."
               : "Worker IMSS is deducted from their wages; employer IMSS and INFONAVIT are your cost."}
           </p>
+          {/* Grand total summary */}
+          {(() => {
+            const withheld = (ob.workerDetails ?? []).reduce((s, w) => s + (w.worker_imss ?? 0), 0);
+            const yourCost = (ob.workerDetails ?? []).reduce((s, w) => s + (w.employer_imss ?? 0) + (w.infonavit ?? 0), 0);
+            const grandTotal = withheld + yourCost;
+            const dueDateStr = ob.dueDate.toLocaleDateString(lang === "es" ? "es-MX" : "en-US", { month: "short", day: "numeric", year: "numeric" });
+            return (
+              <div className="mt-3 p-3 bg-terracotta-50 border border-terracotta-100 rounded-lg">
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  <span className="text-gray-500">{fmtMoney(withheld)}</span>
+                  <span className="text-gray-400 mx-1">({lang === "es" ? "retenido de trabajadoras" : "withheld from workers"})</span>
+                  <span className="text-gray-400 mx-1">+</span>
+                  <span className="text-gray-700">{fmtMoney(yourCost)}</span>
+                  <span className="text-gray-400 mx-1">({lang === "es" ? "tu aportación" : "your contribution"})</span>
+                  <span className="text-gray-400 mx-1">=</span>
+                  <span className="font-bold text-terracotta-700">{fmtMoney(grandTotal)}</span>
+                  <span className="text-gray-500 ml-1">
+                    ({lang === "es" ? "a pagar el" : "to pay by"} {dueDateStr})
+                  </span>
+                </p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
