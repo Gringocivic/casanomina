@@ -46,6 +46,7 @@ interface WorkerDetailRow {
   worker_imss?: number;
   infonavit?: number;
   isr_monthly?: number;
+  current_month_isr?: number;
   accrued_days?: number;
   aguinaldo_amount?: number;
   hasRuns: boolean;
@@ -384,6 +385,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       name: w.full_name,
       daily_salary: parseFloat(w.daily_salary ?? "0"),
       isr_monthly: monthlyIsrEstimate(w),
+      current_month_isr: w.current_month_isr ?? 0,
       hasRuns: !!(w.last_run?.period_end && isoToDate(w.last_run.period_end) >= periodStart),
     }));
 
@@ -597,47 +599,68 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
       )}
 
       {/* ISR breakdown */}
-      {ob.type === "isr" && ob.workerDetails && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="text-gray-400 border-b border-gray-100">
-                <th className="text-left py-1 pr-3 font-medium">
-                  {lang === "es" ? "Trabajadora" : "Worker"}
-                </th>
-                <th className="text-right py-1 font-medium">
-                  {lang === "es" ? "ISR mensual ~" : "Monthly ISR ~"}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {ob.workerDetails.map((w) => (
-                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="py-1.5 pr-3 font-medium text-gray-800">
-                    {w.name}
-                    {!w.hasRuns && (
-                      <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Sin nóminas registradas" : "No runs recorded"}>~</span>
-                    )}
-                  </td>
-                  <td className="text-right py-1.5 text-gray-600">
-                    {w.isr_monthly && w.isr_monthly > 0
-                      ? fmtMoney(w.isr_monthly)
-                      : w.hasRuns
-                        ? <span className="text-gray-500" title={lang === "es" ? "Subsidio al empleo cubre el ISR" : "Employment subsidy covers ISR"}>$0.00</span>
-                        : <span className="text-gray-400 italic">{lang === "es" ? "estimado" : "~estimated"}</span>
-                    }
-                  </td>
+      {ob.type === "isr" && ob.workerDetails && (() => {
+        const allPaid = ob.workerDetails.every((w) => w.hasRuns);
+        const totalWithheld = ob.workerDetails.reduce((s, w) => s + (w.current_month_isr ?? 0), 0);
+        const totalMonthly  = ob.workerDetails.reduce((s, w) => s + (w.isr_monthly ?? 0), 0);
+        return (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="text-gray-400 border-b border-gray-100">
+                  <th className="text-left py-1 pr-3 font-medium">
+                    {lang === "es" ? "Trabajadora" : "Worker"}
+                  </th>
+                  <th className="text-right py-1 pr-3 font-medium">
+                    {lang === "es" ? "ISR mensual ~" : "Monthly ISR ~"}
+                  </th>
+                  <th className="text-right py-1 font-medium">
+                    {lang === "es" ? "Retenido" : "Withheld"}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="text-xs text-gray-400 mt-1 italic">
-            {lang === "es"
-              ? "ISR retenido del salario de la trabajadora; usted lo remite al SAT."
-              : "ISR withheld from worker wages; you remit it to SAT."}
-          </p>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {ob.workerDetails.map((w) => (
+                  <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="py-1.5 pr-3 font-medium text-gray-800">
+                      {w.name}
+                      {!w.hasRuns && (
+                        <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Sin nóminas registradas" : "No runs recorded"}>~</span>
+                      )}
+                    </td>
+                    <td className="text-right py-1.5 pr-3 text-gray-600">
+                      {w.isr_monthly && w.isr_monthly > 0
+                        ? fmtMoney(w.isr_monthly)
+                        : w.hasRuns
+                          ? <span className="text-gray-500" title={lang === "es" ? "Subsidio al empleo cubre el ISR" : "Employment subsidy covers ISR"}>$0.00</span>
+                          : <span className="text-gray-400 italic">{lang === "es" ? "estimado" : "~estimated"}</span>
+                      }
+                    </td>
+                    <td className="text-right py-1.5 text-gray-600">
+                      {w.hasRuns
+                        ? fmtMoney(w.current_month_isr ?? 0)
+                        : <span className="text-gray-300">—</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className={`border-t border-gray-200 ${allPaid ? "font-bold text-gray-900" : "text-gray-500"}`}>
+                  <td className="pt-1.5 pr-3">{lang === "es" ? "Total" : "Total"}</td>
+                  <td className="text-right pt-1.5 pr-3">{fmtMoney(totalMonthly)}</td>
+                  <td className="text-right pt-1.5">{fmtMoney(totalWithheld)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <p className="text-xs text-gray-400 mt-1 italic">
+              {lang === "es"
+                ? "ISR retenido del salario de la trabajadora; usted lo remite al SAT."
+                : "ISR withheld from worker wages; you remit it to SAT."}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Aguinaldo breakdown */}
       {ob.type === "aguinaldo" && ob.workerDetails && (

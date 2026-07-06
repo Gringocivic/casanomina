@@ -76,6 +76,29 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       )
       .groupBy(payrollRuns.worker_id);
 
+    // Current-month ISR per worker
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      .toISOString().split("T")[0];
+
+    const monthIsrRows = await db
+      .select({
+        worker_id:          payrollRuns.worker_id,
+        current_month_isr:  sql<string>`cast(sum(${payrollRuns.isr_withholding}) as text)`,
+      })
+      .from(payrollRuns)
+      .where(
+        and(
+          inArray(payrollRuns.worker_id, ids),
+          gte(payrollRuns.period_start, monthStart),
+          lte(payrollRuns.period_end, monthEnd),
+        )
+      )
+      .groupBy(payrollRuns.worker_id);
+
+    const monthIsrMap = new Map(monthIsrRows.map((r) => [r.worker_id, parseFloat(r.current_month_isr ?? "0")]));
+
     // Most recent payroll run per worker (any time, not just this year)
     const allRuns = await db
       .select({
@@ -109,6 +132,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
         has_contract: contractSet.has(w.id),
         last_run:     lastRunMap.get(w.id) ?? null,
         ytd:          ytdMap.get(w.id) ?? null,
+        current_month_isr: monthIsrMap.get(w.id) ?? 0,
       }))
     );
   });
