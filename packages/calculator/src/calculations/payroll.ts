@@ -52,8 +52,9 @@ export function calculatePayroll(
   const restDayBonus = roundCurrency(worker.daily_salary * 2 * (period.rest_days_worked ?? 0));
   const grossWages = roundCurrency(worker.daily_salary * period.days_worked + holidayBonus + restDayBonus);
 
-  // Step 2: SBC (slightly higher number used only for IMSS/INFONAVIT math).
-  const sbc = calculateSBC(worker.daily_salary, config);
+  // Step 2: SBC — factor depends on seniority because vacation days grow over time.
+  const yearsOfService = calculateYearsOfService(worker.start_date, period.end_date);
+  const sbc = calculateSBC(worker.daily_salary, config, yearsOfService);
 
   // Step 3: IMSS contributions, scaled to the period by days_worked.
   const dailyImss = calculateIMSSContributions(sbc, config);

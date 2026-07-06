@@ -24,7 +24,22 @@ import type { RatesConfig, IMSSBreakdown, ISRResult, VacationAccrualEntry } from
  *
  * LEGAL BASIS: Ley del Seguro Social (LSS) Art. 27.
  */
-export function calculateSBC(dailySalary: number, config: RatesConfig): number {
+export function calculateSBC(
+  dailySalary: number,
+  config: RatesConfig,
+  yearsOfService?: number,
+): number {
+  if (yearsOfService != null) {
+    // Dynamically compute the integration factor based on seniority.
+    // Vacation days grow with years of service (Vacaciones Dignas reform),
+    // so the SBC and therefore IMSS/INFONAVIT must reflect that.
+    // Workers in their first year use year-1 entitlement (12 days) as a floor.
+    const effectiveYear = Math.max(1, Math.ceil(yearsOfService));
+    const vacDays = calculateVacationDays(effectiveYear, config);
+    const factor = 1 + (config.aguinaldo_minimum_days + vacDays * config.prima_vacacional_minimum_pct) / 365;
+    return roundCurrency(dailySalary * factor);
+  }
+  // Fallback: fixed first-year factor from config (backwards compatible).
   return roundCurrency(dailySalary * config.sbc_integration_factor);
 }
 

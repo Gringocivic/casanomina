@@ -27,18 +27,24 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   }
 
   fastify.post("/sbc", async (req, reply) => {
-    const { daily_salary } = z.object({ daily_salary: z.number().positive() }).parse(req.body);
+    const { daily_salary, years_of_service } = z.object({
+      daily_salary: z.number().positive(),
+      years_of_service: z.number().min(0).optional(),
+    }).parse(req.body);
     const config = await getActiveConfig();
     if (!config) return reply.status(500).send({ error: "No active config" });
-    const sbc = calculateSBC(daily_salary, config);
+    const sbc = calculateSBC(daily_salary, config, years_of_service);
     return { daily_salary, sbc, integration_factor: config.sbc_integration_factor };
   });
 
   fastify.post("/imss", async (req, reply) => {
-    const { daily_salary } = z.object({ daily_salary: z.number().positive() }).parse(req.body);
+    const { daily_salary, years_of_service } = z.object({
+      daily_salary: z.number().positive(),
+      years_of_service: z.number().min(0).optional(),
+    }).parse(req.body);
     const config = await getActiveConfig();
     if (!config) return reply.status(500).send({ error: "No active config" });
-    const sbc = calculateSBC(daily_salary, config);
+    const sbc = calculateSBC(daily_salary, config, years_of_service);
     const imss = calculateIMSSContributions(sbc, config);
     const infonavit = calculateINFONAVIT(sbc, config);
     return { daily_salary, sbc, imss, infonavit_employer: infonavit };

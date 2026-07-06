@@ -212,7 +212,9 @@ function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
 
 /** Employer monthly IMSS cost for one worker (×30 days). */
 function monthlyImssEmployer(worker: any): number {
-  const sbc = calculateSBC(parseFloat(worker.daily_salary), RATES_2026);
+  const todayIso = new Date().toISOString().split("T")[0];
+  const years = calculateYearsOfService(worker.start_date, todayIso);
+  const sbc = calculateSBC(parseFloat(worker.daily_salary), RATES_2026, years);
   const imss = calculateIMSSContributions(sbc, RATES_2026);
   return imss.total_employer * 30;
 }
@@ -240,7 +242,9 @@ function monthlyEmployerCost(worker: any): number {
   const dailySalary = parseFloat(worker.daily_salary ?? "0");
   const daysPerWeek = worker.days_per_week ?? 6;
   const monthlyWage = dailySalary * daysPerWeek * (52 / 12);
-  const sbc = calculateSBC(dailySalary, RATES_2026);
+  const todayIso = new Date().toISOString().split("T")[0];
+  const years = calculateYearsOfService(worker.start_date, todayIso);
+  const sbc = calculateSBC(dailySalary, RATES_2026, years);
   const imss = calculateIMSSContributions(sbc, RATES_2026);
   const infonavit = calculateINFONAVIT(sbc, RATES_2026);
   const monthlyImss = imss.total_employer * 30;
@@ -311,7 +315,9 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
 
     const workerDetails: WorkerDetailRow[] = imssWorkers.map((w) => {
       const dailySalary = parseFloat(w.daily_salary ?? "0");
-      const sbc = calculateSBC(dailySalary, RATES_2026);
+      const todayIso = new Date().toISOString().split("T")[0];
+      const years = calculateYearsOfService(w.start_date, todayIso);
+      const sbc = calculateSBC(dailySalary, RATES_2026, years);
       const imss = calculateIMSSContributions(sbc, RATES_2026);
       const infonavit = calculateINFONAVIT(sbc, RATES_2026);
       return {
