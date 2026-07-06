@@ -35,6 +35,20 @@ import {
 
 type ObligationType = "worker_payroll" | "imss" | "isr" | "aguinaldo";
 
+interface WorkerDetailRow {
+  id: string;
+  name: string;
+  daily_salary: number;
+  sbc?: number;
+  employer_imss?: number;
+  worker_imss?: number;
+  infonavit?: number;
+  isr_monthly?: number;
+  accrued_days?: number;
+  aguinaldo_amount?: number;
+  hasRuns: boolean;
+}
+
 interface Obligation {
   id: string;
   type: ObligationType;
@@ -48,6 +62,9 @@ interface Obligation {
   workerId?: string;
   workerName?: string;
   detail?: string;
+  workerDetails?: WorkerDetailRow[];
+  periodStart?: Date;
+  periodEnd?: Date;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,52 +90,85 @@ function fmtDate(d: Date, lang: "en" | "es"): string {
   });
 }
 
-/** Next IMSS bimestral due date (17th of month after bimester closes). */
-function nextImssDue(today: Date): { due: Date; period: string } {
-  // Bimesters and their due month (1-indexed):
-  //   Jan-Feb → Mar 17  | Mar-Apr → May 17  | May-Jun → Jul 17
-  //   Jul-Aug → Sep 17  | Sep-Oct → Nov 17  | Nov-Dec → Jan 17 (next year)
-  const schedule: Array<{ closeMonth: number; dueMonth: number; label: string }> = [
-    { closeMonth: 2,  dueMonth: 3,  label: "Ene-Feb" },
-    { closeMonth: 4,  dueMonth: 5,  label: "Mar-Abr" },
-    { closeMonth: 6,  dueMonth: 7,  label: "May-Jun" },
-    { closeMonth: 8,  dueMonth: 9,  label: "Jul-Ago" },
-    { closeMonth: 10, dueMonth: 11, label: "Sep-Oct" },
-    { closeMonth: 12, dueMonth: 1,  label: "Nov-Dic" },
+function fmtShortDate(d: Date, lang: "en" | "es"): string {
+  return d.toLocaleDateString(lang === "es" ? "es-MX" : "en-US", {
+    month: "short", day: "numeric",
+  });
+}
+
+function fmtMoney(n?: number): string {
+  if (n == null) return "—";
+  return `$${n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Next IMSS bimestral due date plus the bimester's period range. */
+function nextImssDue(today: Date): {
+  due: Date; period: string; periodStart: Date; periodEnd: Date;
+} {
+  const schedule = [
+    { closeMonth: 2,  dueMonth: 3,  label: "Ene-Feb", startM: 1,  endM: 2  },
+    { closeMonth: 4,  dueMonth: 5,  label: "Mar-Abr", startM: 3,  endM: 4  },
+    { closeMonth: 6,  dueMonth: 7,  label: "May-Jun", startM: 5,  endM: 6  },
+    { closeMonth: 8,  dueMonth: 9,  label: "Jul-Ago", startM: 7,  endM: 8  },
+    { closeMonth: 10, dueMonth: 11, label: "Sep-Oct", startM: 9,  endM: 10 },
+    { closeMonth: 12, dueMonth: 1,  label: "Nov-Dic", startM: 11, endM: 12 },
   ];
   const yr = today.getFullYear();
   for (const s of schedule) {
     const dueYear = s.dueMonth === 1 ? yr + 1 : yr;
     const due = new Date(dueYear, s.dueMonth - 1, 17);
-    if (due >= today) return { due, period: s.label };
+    if (due >= today) {
+      const periodStart = new Date(yr, s.startM - 1, 1);
+      const periodEnd   = new Date(yr, s.endM, 0); // last day of endM
+      return { due, period: s.label, periodStart, periodEnd };
+    }
   }
-  return { due: new Date(yr + 1, 0, 17), period: "Nov-Dic" };
+  return {
+    due: new Date(yr + 1, 0, 17),
+    period: "Nov-Dic",
+    periodStart: new Date(yr, 10, 1),
+    periodEnd:   new Date(yr, 11, 31),
+  };
 }
 
-/** Next ISR monthly due date (17th of following month). */
-function nextIsrDue(today: Date): { due: Date; period: string } {
+/** Next ISR monthly due date plus the covered month's period range. */
+function nextIsrDue(today: Date): {
+  due: Date; period: string; periodStart: Date; periodEnd: Date;
+} {
   const yr = today.getFullYear();
-  const mo = today.getMonth(); // 0-indexed
+  const mo = today.getMonth();
   let dueYear = yr;
-  let dueMo = mo + 1; // month after current
+  let dueMo = mo + 1;
   if (dueMo > 11) { dueMo = 0; dueYear++; }
   const due = new Date(dueYear, dueMo, 17);
+
+  // The ISR period is the calendar month before the due date
+  const periodMo   = dueMo === 0 ? 11 : dueMo - 1;
+  const periodYear = dueMo === 0 ? dueYear - 1 : dueYear;
+  const periodStart = new Date(periodYear, periodMo, 1);
+  const periodEnd   = new Date(periodYear, periodMo + 1, 0);
+
   if (due < today) {
-    // already past: next month
     dueMo++;
     if (dueMo > 11) { dueMo = 0; dueYear++; }
-    return { due: new Date(dueYear, dueMo, 17), period: new Date(yr, mo + 1, 1).toLocaleDateString("es-MX", { month: "long" }) };
+    const newPMo   = dueMo === 0 ? 11 : dueMo - 1;
+    const newPYear = dueMo === 0 ? dueYear - 1 : dueYear;
+    return {
+      due: new Date(dueYear, dueMo, 17),
+      period: new Date(yr, mo + 1, 1).toLocaleDateString("es-MX", { month: "long" }),
+      periodStart: new Date(newPYear, newPMo, 1),
+      periodEnd:   new Date(newPYear, newPMo + 1, 0),
+    };
   }
-  const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  return { due, period: MONTHS_ES[mo] };
+  const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  return { due, period: MONTHS_ES[mo], periodStart, periodEnd };
 }
 
-/** Next worker payroll due date. Uses payroll_day if set, otherwise falls back to heuristic. */
+/** Next worker payroll due date. Uses payroll_day if set. */
 function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
   const freq: string = worker.pay_frequency ?? "weekly";
   const payDay: number | null | undefined = worker.payroll_day;
 
-  // ── Legacy heuristic (no payroll_day set) ─────────────────────────
   if (payDay == null) {
     const freqDays: Record<string, number> = { weekly: 7, biweekly: 14, "semi-monthly": 15, monthly: 30 };
     const base = worker.last_run?.period_end
@@ -127,34 +177,30 @@ function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
     return addDays(base, freqDays[freq] ?? 7);
   }
 
-  // ── Weekly: next occurrence of payDay (0=Mon…6=Sun) after today ───
   if (freq === "weekly") {
     const tomorrow = addDays(today, 1);
-    const tDow = (tomorrow.getDay() + 6) % 7; // convert JS Sun=0 → Mon=0
+    const tDow = (tomorrow.getDay() + 6) % 7;
     const daysUntil = (payDay - tDow + 7) % 7;
     return addDays(tomorrow, daysUntil);
   }
 
-  // ── Biweekly: anchor on start_date, pay every 14 days on payDay ───
   if (freq === "biweekly") {
     const start = isoToDate(worker.start_date);
     const sDow = (start.getDay() + 6) % 7;
-    const offset = ((payDay - sDow + 7) % 7) || 14; // first pay date offset from start
+    const offset = ((payDay - sDow + 7) % 7) || 14;
     const firstPay = addDays(start, offset);
     const elapsed = diffDays(firstPay, today);
     if (elapsed < 0) return firstPay;
     return addDays(firstPay, Math.ceil(elapsed / 14) * 14);
   }
 
-  // ── Monthly: payDay = day of month ────────────────────────────────
   if (freq === "monthly") {
-    const dom = payDay;
-    const thisMonth = new Date(today.getFullYear(), today.getMonth(), dom);
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), payDay);
     if (thisMonth > today) return thisMonth;
-    return new Date(today.getFullYear(), today.getMonth() + 1, dom);
+    return new Date(today.getFullYear(), today.getMonth() + 1, payDay);
   }
 
-  // ── Semi-monthly: 15th and last day of each month ─────────────────
+  // Semi-monthly
   const yr = today.getFullYear();
   const mo = today.getMonth();
   const fifteenth = new Date(yr, mo, 15);
@@ -176,7 +222,7 @@ function bimestralImssEmployer(worker: any): number {
   return monthlyImssEmployer(worker) * 2;
 }
 
-/** ISR withheld estimate per month from salary (rough: daily × 30 days monthly ISR). */
+/** ISR withheld estimate per month. */
 function monthlyIsrEstimate(worker: any): number {
   const ytdIsr = parseFloat(worker.ytd?.ytd_isr ?? "0");
   const today = new Date();
@@ -203,30 +249,31 @@ function monthlyEmployerCost(worker: any): number {
 
 /** Aguinaldo deadline: Dec 20 of current year; next year if already past. */
 function aguinaldoDue(today: Date): Date {
-  const d = new Date(today.getFullYear(), 11, 20); // Dec 20
+  const d = new Date(today.getFullYear(), 11, 20);
   if (d < today) return new Date(today.getFullYear() + 1, 11, 20);
   return d;
 }
 
-/** Aguinaldo owed across all workers to date (proportional by days worked this year). */
+/** Aguinaldo owed across all workers to date. */
 function totalAguinaldoAccrued(workers: any[]): number {
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
   const yearStart = `${today.getFullYear()}-01-01`;
   return workers.reduce((sum, w) => {
     const dailySalary = parseFloat(w.daily_salary ?? "0");
-    // Days worked in the current calendar year (from max(start_date, Jan 1) to today)
     const effectiveStart = w.start_date > yearStart ? w.start_date : yearStart;
     const daysThisYear = Math.max(1, daysBetweenInclusive(effectiveStart, todayStr));
     return sum + calculateAguinaldo(dailySalary, daysThisYear, RATES_2026);
   }, 0);
 }
 
-// ─── Obligation builder ────────────────────────────────────────────────────────
+// ─── Obligation builder ───────────────────────────────────────────────────────
 
 function buildObligations(workers: any[], today: Date): Obligation[] {
   const obligations: Obligation[] = [];
   const imssWorkers = workers.filter((w) => w.is_imss_registered);
+  const todayStr = today.toISOString().split("T")[0];
+  const yearStart = `${today.getFullYear()}-01-01`;
 
   // Worker payrolls
   for (const w of workers) {
@@ -240,7 +287,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
     const periodDays = freqDays[w.pay_frequency ?? "weekly"] ?? 7;
     const estimatedNet = lastNet > 0
       ? lastNet
-      : parseFloat(w.daily_salary ?? "0") * daysPerWeek * (periodDays / 7) * 0.85; // rough deduction estimate
+      : parseFloat(w.daily_salary ?? "0") * daysPerWeek * (periodDays / 7) * 0.85;
     obligations.push({
       id: `payroll-${w.id}`,
       type: "worker_payroll",
@@ -256,11 +303,29 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
     });
   }
 
-  // IMSS bimestral (only if any workers are registered)
+  // IMSS bimestral
   if (imssWorkers.length > 0) {
-    const { due: imssDue, period } = nextImssDue(today);
+    const { due: imssDue, period, periodStart, periodEnd } = nextImssDue(today);
     const daysUntil = diffDays(today, imssDue);
     const totalImss = imssWorkers.reduce((s, w) => s + bimestralImssEmployer(w), 0);
+
+    const workerDetails: WorkerDetailRow[] = imssWorkers.map((w) => {
+      const dailySalary = parseFloat(w.daily_salary ?? "0");
+      const sbc = calculateSBC(dailySalary, RATES_2026);
+      const imss = calculateIMSSContributions(sbc, RATES_2026);
+      const infonavit = calculateINFONAVIT(sbc, RATES_2026);
+      return {
+        id: w.id,
+        name: w.full_name,
+        daily_salary: dailySalary,
+        sbc,
+        employer_imss: imss.total_employer * 60,
+        worker_imss: imss.total_worker * 60,
+        infonavit: infonavit * 60,
+        hasRuns: !!w.last_run,
+      };
+    });
+
     obligations.push({
       id: "imss-bimestral",
       type: "imss",
@@ -271,15 +336,27 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       amount: totalImss,
       isEstimate: true,
       isOverdue: daysUntil < 0,
-      detail: "Pagar en IDSE / SIPARE. Aplica a trabajadoras inscritas en IMSS.",
+      detail: "Pagar en IDSE / SIPARE antes del día 17.",
+      workerDetails,
+      periodStart,
+      periodEnd,
     });
   }
 
-  // ISR monthly (only if any worker has ISR)
+  // ISR monthly
   const totalIsrMonthly = workers.reduce((s, w) => s + monthlyIsrEstimate(w), 0);
-  if (totalIsrMonthly > 0 || workers.length > 0) {
-    const { due: isrDue, period } = nextIsrDue(today);
+  if (workers.length > 0) {
+    const { due: isrDue, period, periodStart, periodEnd } = nextIsrDue(today);
     const daysUntil = diffDays(today, isrDue);
+
+    const workerDetails: WorkerDetailRow[] = workers.map((w) => ({
+      id: w.id,
+      name: w.full_name,
+      daily_salary: parseFloat(w.daily_salary ?? "0"),
+      isr_monthly: monthlyIsrEstimate(w),
+      hasRuns: parseFloat(w.ytd?.ytd_isr ?? "0") > 0,
+    }));
+
     obligations.push({
       id: "isr-monthly",
       type: "isr",
@@ -291,6 +368,9 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       isEstimate: true,
       isOverdue: daysUntil < 0,
       detail: "Declarar y pagar vía SIPARE o declaración mensual en el SAT.",
+      workerDetails,
+      periodStart,
+      periodEnd,
     });
   }
 
@@ -299,6 +379,21 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
     const due = aguinaldoDue(today);
     const daysUntil = diffDays(today, due);
     const accrued = totalAguinaldoAccrued(workers);
+
+    const workerDetails: WorkerDetailRow[] = workers.map((w) => {
+      const dailySalary = parseFloat(w.daily_salary ?? "0");
+      const effectiveStart = w.start_date > yearStart ? w.start_date : yearStart;
+      const daysThisYear = Math.max(1, daysBetweenInclusive(effectiveStart, todayStr));
+      return {
+        id: w.id,
+        name: w.full_name,
+        daily_salary: dailySalary,
+        accrued_days: daysThisYear,
+        aguinaldo_amount: calculateAguinaldo(dailySalary, daysThisYear, RATES_2026),
+        hasRuns: !!w.last_run,
+      };
+    });
+
     obligations.push({
       id: "aguinaldo",
       type: "aguinaldo",
@@ -310,10 +405,12 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       isEstimate: true,
       isOverdue: daysUntil < 0,
       detail: "Vence el 20 de diciembre. Mínimo 15 días de salario (LFT Art. 87).",
+      workerDetails,
+      periodStart: new Date(today.getFullYear(), 0, 1),
+      periodEnd: today,
     });
   }
 
-  // Sort: overdue first, then by date
   return obligations.sort((a, b) => {
     if (a.isOverdue && !b.isOverdue) return -1;
     if (!a.isOverdue && b.isOverdue) return 1;
@@ -346,6 +443,180 @@ function typeIcon(type: ObligationType) {
     case "isr":            return <div className={`${cls} bg-blue-50 text-blue-600`}>🧾</div>;
     case "aguinaldo":      return <div className={`${cls} bg-amber-100 text-amber-700`}>🎁</div>;
   }
+}
+
+// ─── Government detail panel ──────────────────────────────────────────────────
+
+function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
+  const hasRunsAll = ob.workerDetails?.every((w) => w.hasRuns);
+  const hasRunsAny = ob.workerDetails?.some((w) => w.hasRuns);
+
+  const dataSourceNote = hasRunsAll
+    ? (lang === "es" ? "Basado en nóminas registradas en CasaNomina." : "Based on recorded payroll runs in CasaNomina.")
+    : hasRunsAny
+    ? (lang === "es" ? "Mezcla de nóminas registradas (~) y estimaciones por salario." : "Mix of recorded payroll and salary estimates (~).")
+    : (lang === "es" ? "Estimado con base en el salario. Sin nóminas registradas en este período." : "Estimated from salary data — no payroll runs recorded for this period.");
+
+  return (
+    <div className="space-y-3">
+      {/* Period */}
+      {ob.periodStart && ob.periodEnd && (
+        <p className="text-xs text-gray-500">
+          <span className="font-semibold text-gray-700">
+            {lang === "es" ? "Período:" : "Period:"}
+          </span>{" "}
+          {fmtShortDate(ob.periodStart, lang)} – {fmtShortDate(ob.periodEnd, lang)}
+        </p>
+      )}
+
+      {/* IMSS breakdown */}
+      {ob.type === "imss" && ob.workerDetails && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-100">
+                <th className="text-left py-1 pr-3 font-medium">
+                  {lang === "es" ? "Trabajadora" : "Worker"}
+                </th>
+                <th className="text-right py-1 pr-3 font-medium">SBC/día</th>
+                <th className="text-right py-1 pr-3 font-medium">
+                  {lang === "es" ? "IMSS patrón" : "Employer IMSS"}
+                </th>
+                <th className="text-right py-1 pr-3 font-medium">
+                  {lang === "es" ? "IMSS trabajadora" : "Worker IMSS"}
+                </th>
+                <th className="text-right py-1 font-medium">INFONAVIT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ob.workerDetails.map((w) => (
+                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-1.5 pr-3 font-medium text-gray-800">
+                    {w.name}
+                    {!w.hasRuns && (
+                      <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Estimado" : "Estimated"}>~</span>
+                    )}
+                  </td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.sbc)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.employer_imss)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-500 italic">{fmtMoney(w.worker_imss)}</td>
+                  <td className="text-right py-1.5 text-gray-600">{fmtMoney(w.infonavit)}</td>
+                </tr>
+              ))}
+              {ob.workerDetails.length > 1 && (
+                <tr className="border-t border-gray-200 font-semibold">
+                  <td className="py-1.5 pr-3 text-gray-700" colSpan={2}>
+                    {lang === "es" ? "Total patrón (tu pago)" : "Your total (employer)"}
+                  </td>
+                  <td className="text-right py-1.5 pr-3 text-gray-800">
+                    {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.employer_imss ?? 0), 0))}
+                  </td>
+                  <td className="text-right py-1.5 pr-3 text-gray-400 italic text-xs font-normal">
+                    ({lang === "es" ? "retenido" : "withheld"})
+                  </td>
+                  <td className="text-right py-1.5 text-gray-800">
+                    {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.infonavit ?? 0), 0))}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-400 mt-1 italic">
+            {lang === "es"
+              ? "La cuota de la trabajadora se descuenta de su salario; la del patrón y el INFONAVIT los paga usted."
+              : "Worker IMSS is deducted from their wages; employer IMSS and INFONAVIT are your cost."}
+          </p>
+        </div>
+      )}
+
+      {/* ISR breakdown */}
+      {ob.type === "isr" && ob.workerDetails && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-100">
+                <th className="text-left py-1 pr-3 font-medium">
+                  {lang === "es" ? "Trabajadora" : "Worker"}
+                </th>
+                <th className="text-right py-1 font-medium">
+                  {lang === "es" ? "ISR mensual ~" : "Monthly ISR ~"}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ob.workerDetails.map((w) => (
+                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-1.5 pr-3 font-medium text-gray-800">
+                    {w.name}
+                    {!w.hasRuns && (
+                      <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Sin nóminas registradas" : "No runs recorded"}>~</span>
+                    )}
+                  </td>
+                  <td className="text-right py-1.5 text-gray-600">
+                    {w.isr_monthly && w.isr_monthly > 0 ? fmtMoney(w.isr_monthly) : (
+                      <span className="text-gray-400 italic">
+                        {lang === "es" ? "sin datos" : "no data"}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-400 mt-1 italic">
+            {lang === "es"
+              ? "ISR retenido del salario de la trabajadora; usted lo remite al SAT."
+              : "ISR withheld from worker wages; you remit it to SAT."}
+          </p>
+        </div>
+      )}
+
+      {/* Aguinaldo breakdown */}
+      {ob.type === "aguinaldo" && ob.workerDetails && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-100">
+                <th className="text-left py-1 pr-3 font-medium">
+                  {lang === "es" ? "Trabajadora" : "Worker"}
+                </th>
+                <th className="text-right py-1 pr-3 font-medium">
+                  {lang === "es" ? "Salario/día" : "Daily salary"}
+                </th>
+                <th className="text-right py-1 pr-3 font-medium">
+                  {lang === "es" ? "Días acumulados" : "Days accrued"}
+                </th>
+                <th className="text-right py-1 font-medium">
+                  {lang === "es" ? "Aguinaldo ~" : "Aguinaldo ~"}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ob.workerDetails.map((w) => (
+                <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="py-1.5 pr-3 font-medium text-gray-800">{w.name}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.daily_salary)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600">{w.accrued_days ?? "—"}</td>
+                  <td className="text-right py-1.5 text-gray-600">{fmtMoney(w.aguinaldo_amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-gray-400 mt-1 italic">
+            {lang === "es"
+              ? "Acumulado proporcional al 20 de dic. Mínimo 15 días de salario (LFT Art. 87)."
+              : "Prorated accrual to Dec 20. Minimum 15 days salary (LFT Art. 87)."}
+          </p>
+        </div>
+      )}
+
+      {/* Detail note + data source */}
+      {ob.detail && (
+        <p className="text-xs text-gray-500 border-t border-gray-100 pt-2">{ob.detail}</p>
+      )}
+      <p className="text-xs text-gray-400 italic">{dataSourceNote}</p>
+    </div>
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -429,6 +700,7 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const c = urgencyColor(ob.daysUntil, ob.isOverdue);
+  const hasDetail = !!(ob.workerDetails?.length || ob.detail);
 
   return (
     <div className={`border rounded-xl ${c.border} ${c.bg} overflow-hidden`}>
@@ -468,10 +740,11 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             </Button>
           )}
 
-          {ob.detail && (
+          {hasDetail && (
             <button
               onClick={() => setOpen(!open)}
               className="p-1 text-gray-400 hover:text-gray-600"
+              aria-label={open ? "Collapse" : "Expand"}
             >
               {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </button>
@@ -479,10 +752,14 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
         </div>
       </div>
 
-      {open && ob.detail && (
+      {open && hasDetail && (
         <div className="px-4 pb-4 pt-0">
-          <div className="ml-11 p-3 bg-white bg-opacity-60 rounded-lg border border-gray-100">
-            <p className="text-xs text-gray-600">{ob.detail}</p>
+          <div className="ml-11 p-3 bg-white bg-opacity-70 rounded-lg border border-gray-100">
+            {ob.workerDetails?.length ? (
+              <GovDetailPanel ob={ob} lang={lang} />
+            ) : ob.detail ? (
+              <p className="text-xs text-gray-600">{ob.detail}</p>
+            ) : null}
           </div>
         </div>
       )}
@@ -505,7 +782,10 @@ function PaymentObligations({ workers, lang }: { workers: any[]; lang: "en" | "e
         <h2 className="font-semibold text-gray-900">
           {lang === "es" ? "Obligaciones de pago" : "Payment obligations"}
         </h2>
-        <Badge variant="neutral">{obligations.filter((o) => o.daysUntil <= 10 || o.isOverdue).length} {lang === "es" ? "próximas" : "upcoming"}</Badge>
+        <Badge variant="neutral">
+          {obligations.filter((o) => o.daysUntil <= 10 || o.isOverdue).length}{" "}
+          {lang === "es" ? "próximas" : "upcoming"}
+        </Badge>
       </div>
 
       {workerObs.length > 0 && (
@@ -533,7 +813,7 @@ function PaymentObligations({ workers, lang }: { workers: any[]; lang: "en" | "e
   );
 }
 
-/** Onboarding checklist items for a worker derived from existing fields. */
+/** Onboarding checklist items for a worker. */
 function pendingItems(w: any): string[] {
   const items: string[] = [];
   if (!w.curp) items.push("CURP");
@@ -668,7 +948,6 @@ function UpcomingHolidays({ lang }: { lang: "en" | "es" }) {
   );
 }
 
-// Hardcoded tips as fallback (CMS may have more)
 const FALLBACK_TIPS = [
   {
     key: "tip-aguinaldo",
@@ -768,7 +1047,6 @@ export function Dashboard() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -794,7 +1072,6 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Error banner */}
       {error && (
         <div className="mb-6 flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
           <AlertTriangle size={18} className="text-red-500 flex-shrink-0" />
@@ -802,7 +1079,6 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Loading skeleton */}
       {loading && (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
@@ -812,15 +1088,12 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Content */}
       {!loading && (
         <>
-          {/* Stats bar */}
           {activeWorkers.length > 0 && (
             <StatBar workers={activeWorkers} obligations={buildObligations(activeWorkers, new Date())} lang={lang} />
           )}
 
-          {/* Empty state */}
           {activeWorkers.length === 0 && !error && (
             <Card className="text-center py-16 mb-8">
               <Users size={48} className="text-gray-200 mx-auto mb-4" />
@@ -838,12 +1111,10 @@ export function Dashboard() {
             </Card>
           )}
 
-          {/* Payment obligations */}
           {activeWorkers.length > 0 && (
             <PaymentObligations workers={activeWorkers} lang={lang} />
           )}
 
-          {/* Two-column: onboarding + holidays */}
           {activeWorkers.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
               <OnboardingPending workers={activeWorkers} lang={lang} />
@@ -851,7 +1122,6 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* Did you know */}
           <DidYouKnow lang={lang} />
         </>
       )}
