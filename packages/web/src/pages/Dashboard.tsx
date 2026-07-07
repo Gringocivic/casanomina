@@ -49,6 +49,7 @@ interface WorkerDetailRow {
   current_month_isr?: number;
   accrued_days?: number;
   aguinaldo_amount?: number;
+  estimated_aguinaldo?: number;
   hasRuns: boolean;
 }
 
@@ -411,12 +412,16 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       const dailySalary = parseFloat(w.daily_salary ?? "0");
       const effectiveStart = w.start_date > yearStart ? w.start_date : yearStart;
       const daysThisYear = Math.max(1, daysBetweenInclusive(effectiveStart, todayStr));
+      const dec20Str = `${today.getFullYear()}-12-20`;
+      const daysToEnd = daysBetweenInclusive(effectiveStart, dec20Str);
+      const estimatedDays = Math.round(daysToEnd * (w.days_per_week ?? 6) / 7);
       return {
         id: w.id,
         name: w.full_name,
         daily_salary: dailySalary,
         accrued_days: daysThisYear,
         aguinaldo_amount: calculateAguinaldo(dailySalary, daysThisYear, RATES_2026),
+        estimated_aguinaldo: calculateAguinaldo(dailySalary, Math.max(daysThisYear, estimatedDays), RATES_2026),
         hasRuns: (w.ytd?.run_count ?? 0) > 0,
       };
     });
@@ -670,10 +675,13 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                   {lang === "es" ? "Salario/día" : "Daily salary"}
                 </th>
                 <th className="text-right py-1 pr-3 font-medium">
-                  {lang === "es" ? "Días acumulados" : "Days accrued"}
+                  {lang === "es" ? "Días trab. YTD" : "Days worked YTD"}
+                </th>
+                <th className="text-right py-1 pr-3 font-medium">
+                  {lang === "es" ? "Aguinaldo ganado YTD" : "Aguinaldo earned YTD"}
                 </th>
                 <th className="text-right py-1 font-medium">
-                  {lang === "es" ? "Aguinaldo ~" : "Aguinaldo ~"}
+                  {lang === "es" ? "Aguinaldo estimado" : "Estimated aguinaldo"}
                 </th>
               </tr>
             </thead>
@@ -683,7 +691,8 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                   <td className="py-1.5 pr-3 font-medium text-gray-800">{w.name}</td>
                   <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.daily_salary)}</td>
                   <td className="text-right py-1.5 pr-3 text-gray-600">{w.accrued_days ?? "—"}</td>
-                  <td className="text-right py-1.5 text-gray-600">{fmtMoney(w.aguinaldo_amount)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.aguinaldo_amount)}</td>
+                  <td className="text-right py-1.5 text-amber-700 font-medium">{w.estimated_aguinaldo ? fmtMoney(w.estimated_aguinaldo) : "—"}</td>
                 </tr>
               ))}
             </tbody>
