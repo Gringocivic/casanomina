@@ -61,6 +61,7 @@ interface Obligation {
   dueDate: Date;
   daysUntil: number;
   amount: number;
+  amount_estimated?: number;
   isEstimate: boolean;
   isOverdue: boolean;
   workerId?: string;
@@ -434,6 +435,7 @@ function buildObligations(workers: any[], today: Date): Obligation[] {
       dueDate: due,
       daysUntil,
       amount: accrued,
+      amount_estimated: workerDetails.reduce((s, w) => s + (w.estimated_aguinaldo ?? 0), 0),
       isEstimate: true,
       isOverdue: daysUntil < 0,
       detail: { en: "Due Dec 20. Minimum 15 days salary (LFT Art. 87).", es: "Vence el 20 de diciembre. Mínimo 15 días de salario (LFT Art. 87)." },
@@ -697,11 +699,30 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
               ))}
             </tbody>
           </table>
-          <p className="text-xs text-gray-400 mt-1 italic">
-            {lang === "es"
-              ? "Acumulado proporcional al 20 de dic. Mínimo 15 días de salario (LFT Art. 87)."
-              : "Prorated accrual to Dec 20. Minimum 15 days salary (LFT Art. 87)."}
-          </p>
+          <table className="w-full text-xs border-collapse mt-0.5">
+            <tfoot>
+              <tr className="border-t-2 border-gray-200 font-semibold text-gray-700">
+                <td className="py-1.5 pr-3">{lang === "es" ? "Total" : "Total"}</td>
+                <td className="text-right py-1.5 pr-3"></td>
+                <td className="text-right py-1.5 pr-3">
+                  {ob.workerDetails.reduce((s, w) => s + (w.accrued_days ?? 0), 0)}
+                </td>
+                <td className="text-right py-1.5 pr-3 text-gray-700">
+                  {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.aguinaldo_amount ?? 0), 0))}
+                </td>
+                <td className="text-right py-1.5 text-amber-700">
+                  {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.estimated_aguinaldo ?? 0), 0))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+          <div className="flex items-start gap-3 mt-2 text-xs text-gray-400 italic">
+            <span>
+              {lang === "es"
+                ? "Ganado YTD: acumulado proporcional hasta hoy. Estimado: proyección a dic 20 según días/sem del contrato."
+                : "Earned YTD: prorated accrual through today. Estimated: projection to Dec 20 based on contracted days/week."}
+            </span>
+          </div>
         </div>
       )}
 
@@ -827,7 +848,20 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
 
         <div className="flex items-center gap-3 flex-shrink-0">
           <div className="text-right">
-            <MoneyAmount amount={ob.amount} size="md" className="font-semibold text-gray-900" />
+            {ob.amount_estimated != null ? (
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400">{lang === "es" ? "Ganado YTD:" : "Earned YTD:"}</span>
+                  <MoneyAmount amount={ob.amount} size="sm" className="text-gray-600" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-amber-600 font-medium">{lang === "es" ? "Estimado total:" : "Full-year est.:"}</span>
+                  <MoneyAmount amount={ob.amount_estimated} size="md" className="font-bold text-amber-700" />
+                </div>
+              </div>
+            ) : (
+              <MoneyAmount amount={ob.amount} size="md" className="font-semibold text-gray-900" />
+            )}
           </div>
 
           {ob.type === "worker_payroll" && ob.workerId && (
