@@ -266,57 +266,14 @@
   ],
   "isr_employment_subsidy_monthly": [
     {
+      "_comment": "Workers earning up to $11,492.66/month receive the full flat subsidy",
       "lower_limit": 0.01,
-      "upper_limit": 1768.96,
-      "subsidy": 407.02
+      "upper_limit": 11492.66,
+      "subsidy": 535.65
     },
     {
-      "lower_limit": 1768.97,
-      "upper_limit": 2653.38,
-      "subsidy": 406.83
-    },
-    {
-      "lower_limit": 2653.39,
-      "upper_limit": 3472.84,
-      "subsidy": 406.62
-    },
-    {
-      "lower_limit": 3472.85,
-      "upper_limit": 3537.87,
-      "subsidy": 392.77
-    },
-    {
-      "lower_limit": 3537.88,
-      "upper_limit": 4446.15,
-      "subsidy": 382.46
-    },
-    {
-      "lower_limit": 4446.16,
-      "upper_limit": 4717.18,
-      "subsidy": 354.23
-    },
-    {
-      "lower_limit": 4717.19,
-      "upper_limit": 5335.42,
-      "subsidy": 324.87
-    },
-    {
-      "lower_limit": 5335.43,
-      "upper_limit": 6224.67,
-      "subsidy": 294.63
-    },
-    {
-      "lower_limit": 6224.68,
-      "upper_limit": 7113.9,
-      "subsidy": 253.54
-    },
-    {
-      "lower_limit": 7113.91,
-      "upper_limit": 7382.33,
-      "subsidy": 217.61
-    },
-    {
-      "lower_limit": 7382.34,
+      "_comment": "Workers earning above the ceiling receive no subsidy",
+      "lower_limit": 11492.67,
       "upper_limit": null,
       "subsidy": 0.0
     }
@@ -358,5 +315,6 @@
       "name": "Navidad (Christmas)",
       "triple_pay": true
     }
-  ]
+  ],
+  "_comment_isr_subsidy": "Subsidio para el empleo 2026 — DOF 31-Dec-2025. Flat credit of 15.02% × UMA mensual ($3,566.22) = $535.65/month for workers with monthly income up to $11,492.66. Replaces the pre-2024 multi-bracket table. January 2026 technically uses 15.59% × UMA_jan ($3,439.46) = $536.21 — difference of $0.56 is immaterial; single rate used for simplicity."
 }
