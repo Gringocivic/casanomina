@@ -295,7 +295,7 @@ function PayslipDoc({ run, worker, config }: {
 
       // ── PERCEPCIONES ──────────────────────────────────────────────────────
       el(Text, { style: S.sectionTitle }, "PERCEPCIONES / EARNINGS"),
-      Row("Sueldo del período", mxn(grossPay - vacationPay - primaVacacional - holidayBonus - restDayBonus), false),
+      Row(`Sueldo del período (${(bd?.period?.days_worked ?? 0) - vacationDaysPaid} días regulares)`, mxn(grossPay - vacationPay - primaVacacional - holidayBonus - restDayBonus), false),
       holidayBonus > 0 ? Row("Bono días festivos trabajados (LFT Art. 75)", mxn(holidayBonus), true) : null,
       restDayBonus > 0 ? Row("Bono descanso trabajado (LFT Art. 73)", mxn(restDayBonus), false) : null,
       vacationDaysPaid > 0 ? Row(`Pago vacaciones (${vacationDaysPaid} días, LFT Art. 76)`, mxn(vacationPay), true) : null,
