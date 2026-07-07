@@ -152,18 +152,25 @@ export function WorkerOnboarding() {
   async function createWorker() {
     setSaving(true);
     setError(null);
+    const payload = {
+      ...info,
+      daily_salary:  Number(terms.daily_salary),
+      wage_zone:     terms.wage_zone,
+      pay_frequency: terms.pay_frequency,
+      days_per_week: Number(terms.days_per_week),
+      live_in:       terms.live_in,
+      payroll_day:   terms.pay_frequency === "semi-monthly" ? null : terms.payroll_day,
+    };
     try {
-      const w = await api.workers.create({
-        ...info,
-        daily_salary:  Number(terms.daily_salary),
-        wage_zone:     terms.wage_zone,
-        pay_frequency: terms.pay_frequency,
-        days_per_week: Number(terms.days_per_week),
-        live_in:       terms.live_in,
-        payroll_day:   terms.pay_frequency === "semi-monthly" ? null : terms.payroll_day,
-      });
-      setWorkerId(w.id);
-      setStep(3);
+      if (workerId) {
+        // User went back to step 2 and changed terms — update the existing worker.
+        await api.workers.update(workerId, payload);
+        setStep(3);
+      } else {
+        const w = await api.workers.create(payload);
+        setWorkerId(w.id);
+        setStep(3);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
