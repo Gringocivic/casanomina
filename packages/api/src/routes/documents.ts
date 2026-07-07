@@ -36,17 +36,20 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       const [config] = await db.select().from(rateConfigs).where(eq(rateConfigs.id, run.config_id));
       if (!config) return reply.status(404).send({ error: "Rate config not found" });
 
-      // Vacation days taken this calendar year (for paystub remaining balance)
-      const yearStart = `${new Date().getFullYear()}-01-01`;
-      const yearEnd   = `${new Date().getFullYear()}-12-31`;
-      const [vacRow] = await db.select({
-        taken: sql<number>`cast(sum(${payrollRuns.vacation_days}) as integer)`,
+      // Vacation days taken in this worker's current anniversary year
+      // (LFT vacation entitlement resets on hire anniversary, not Jan 1)
+      const hireDate = new Date(worker.start_date + "T00:00:00");
+      const today    = new Date();
+      const anniv    = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate());
+      if (anniv > today) anniv.setFullYear(today.getFullYear() - 1);
+      const annivStart = anniv.toISOString().split("T")[0];
+      const vacRows = await db.select({
+        vacation_days: payrollRuns.vacation_days,
       }).from(payrollRuns).where(
         and(eq(payrollRuns.worker_id, run.worker_id),
-            gte(payrollRuns.period_start, yearStart),
-            lte(payrollRuns.period_end, yearEnd))
+            gte(payrollRuns.period_start, annivStart))
       );
-      const vacationDaysTakenYTD = vacRow?.taken ?? 0;
+      const vacationDaysTakenYTD = vacRows.reduce((sum, r) => sum + (r.vacation_days ?? 0), 0);
 
       const pdfBuffer = await renderPayslipToBuffer(
         {

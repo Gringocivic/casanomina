@@ -99,22 +99,26 @@ const plugin: FastifyPluginAsync = async (fastify) => {
 
     const monthIsrMap = new Map(monthIsrRows.map((r) => [r.worker_id, parseFloat(r.current_month_isr ?? "0")]));
 
-    // Vacation days taken this calendar year
-    const vacationRows = await db
-      .select({
-        worker_id:           payrollRuns.worker_id,
-        vacation_days_taken: sql<number>`cast(sum(${payrollRuns.vacation_days}) as integer)`,
-      })
-      .from(payrollRuns)
-      .where(
-        and(
-          inArray(payrollRuns.worker_id, ids),
-          gte(payrollRuns.period_start, yearStart),
-          lte(payrollRuns.period_end, yearEnd),
-        )
-      )
-      .groupBy(payrollRuns.worker_id);
-    const vacationMap = new Map(vacationRows.map((r) => [r.worker_id, r.vacation_days_taken ?? 0]));
+    // Vacation days taken in each worker's current anniversary year
+    // (LFT vacation entitlement resets on hire anniversary, not Jan 1)
+    const allVacRuns = await db.select({
+      worker_id:     payrollRuns.worker_id,
+      period_start:  payrollRuns.period_start,
+      vacation_days: payrollRuns.vacation_days,
+    }).from(payrollRuns).where(inArray(payrollRuns.worker_id, ids));
+
+    const vacationMap = new Map<string, number>();
+    for (const w of allWorkers) {
+      const hireDate = new Date(w.start_date + "T00:00:00");
+      const today    = new Date();
+      const anniv    = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate());
+      if (anniv > today) anniv.setFullYear(today.getFullYear() - 1);
+      const annivStart = anniv.toISOString().split("T")[0];
+      const taken = allVacRuns
+        .filter((r) => r.worker_id === w.id && r.period_start >= annivStart)
+        .reduce((sum, r) => sum + (r.vacation_days ?? 0), 0);
+      vacationMap.set(w.id, taken);
+    }
 
     // Most recent payroll run per worker (any time, not just this year)
     const allRuns = await db
