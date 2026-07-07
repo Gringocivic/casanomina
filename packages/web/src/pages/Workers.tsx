@@ -232,7 +232,7 @@ export function Workers() {
 
             // Accruals — computed client-side using the calculator
             const yearsService = calculateYearsOfService(w.start_date, today);
-            const vacDays      = calculateVacationDays(yearsService, RATES_2026);
+            const vacDays      = Math.round(calculateVacationDays(yearsService, RATES_2026) * (w.days_per_week ?? 6) / 6);
             const daysThisYear = daysBetweenInclusive(
               w.start_date > yearStart ? w.start_date : yearStart,
               today

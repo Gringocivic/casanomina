@@ -175,7 +175,7 @@ export function Payroll() {
     if (!selectedWorkerObj) return null;
     const today = new Date().toISOString().split("T")[0];
     const years = calculateYearsOfService(selectedWorkerObj.start_date, today);
-    const earned = calculateVacationDays(Math.ceil(years), RATES_2026);
+    const earned = Math.round(calculateVacationDays(Math.ceil(years), RATES_2026) * (selectedWorkerObj.days_per_week ?? 6) / 6);
     const taken  = selectedWorkerObj.vacation_days_taken ?? 0;
     return { earned, taken, remaining: Math.max(0, earned - taken) };
   }, [selectedWorkerObj]);
