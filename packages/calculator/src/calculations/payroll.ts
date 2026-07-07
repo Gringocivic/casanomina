@@ -45,12 +45,16 @@ export function calculatePayroll(
   period: PayPeriod,
   config: RatesConfig
 ): PayrollResult {
-  // Step 1: Gross wages = daily salary x days worked, plus holiday and rest-day bonuses.
+  // Step 1: Gross wages = daily salary x days worked, plus holiday, rest-day, and vacation bonuses.
   // LFT Art. 75: mandatory holiday worked → regular pay (in days_worked) + 2× bonus = 3× total.
   // LFT Art. 73: rest day worked → 2× daily salary for that day (not in days_worked count).
+  // LFT Arts. 76, 80: vacation pay + prima vacacional (25% minimum) when vacation_days > 0.
   const holidayBonus = roundCurrency(worker.daily_salary * 2 * (period.holiday_days_worked ?? 0));
   const restDayBonus = roundCurrency(worker.daily_salary * 2 * (period.rest_days_worked ?? 0));
-  const grossWages = roundCurrency(worker.daily_salary * period.days_worked + holidayBonus + restDayBonus);
+  const vacationDays = period.vacation_days ?? 0;
+  const vacationPay = roundCurrency(worker.daily_salary * vacationDays);
+  const primaVacacional = calculatePrimaVacacional(worker.daily_salary, vacationDays, config);
+  const grossWages = roundCurrency(worker.daily_salary * period.days_worked + holidayBonus + restDayBonus + vacationPay + primaVacacional);
 
   // Step 2: SBC — factor depends on seniority because vacation days grow over time.
   const yearsOfService = calculateYearsOfService(worker.start_date, period.end_date);
@@ -93,6 +97,9 @@ export function calculatePayroll(
     gross_wages: grossWages,
     holiday_bonus: holidayBonus,
     rest_day_bonus: restDayBonus,
+    vacation_days: vacationDays,
+    vacation_pay: vacationPay,
+    prima_vacacional: primaVacacional,
     imss: imssForPeriod,
     infonavit_employer_contribution: infonavitForPeriod,
     isr: isrResult,

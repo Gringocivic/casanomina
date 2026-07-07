@@ -15,7 +15,7 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
 import { ChevronDown, ChevronRight, Receipt, CheckCircle, DollarSign, Download, Clock, Loader2, AlertTriangle, CalendarX2 } from "lucide-react";
-import { RATES_2026 } from "@casanomina/calculator";
+import { RATES_2026, calculateVacationDays, calculateYearsOfService } from "@casanomina/calculator";
 
 function IMSSBreakdownTable({ imss, lang }: { imss: any; lang: "en" | "es" }) {
   const [open, setOpen] = useState(false);
@@ -104,6 +104,7 @@ export function Payroll() {
     start_date: "",
     end_date: "",
     days_worked: "",
+    vacation_days: "0",
   });
 
   const [preview, setPreview] = useState<any>(null);
@@ -146,6 +147,7 @@ export function Payroll() {
       start_date: iso(startDate),
       end_date:   iso(endDate),
       days_worked: String(daysWorked),
+      vacation_days: "0",
     });
     setPreview(null);
     setSavedRun(null);
@@ -168,6 +170,16 @@ export function Payroll() {
     });
   }, [periodForm.start_date, periodForm.end_date]);
 
+  // Vacation balance for selected worker
+  const vacationBalance = useMemo(() => {
+    if (!selectedWorkerObj) return null;
+    const today = new Date().toISOString().split("T")[0];
+    const years = calculateYearsOfService(selectedWorkerObj.start_date, today);
+    const earned = calculateVacationDays(Math.ceil(years), RATES_2026);
+    const taken  = selectedWorkerObj.vacation_days_taken ?? 0;
+    return { earned, taken, remaining: Math.max(0, earned - taken) };
+  }, [selectedWorkerObj]);
+
   const { data: history, loading: historyLoading } = useApi(
     () => selectedWorker ? api.payroll.list(selectedWorker) : Promise.resolve([] as any[]),
     [selectedWorker, historyKey]
@@ -184,6 +196,7 @@ export function Payroll() {
         days_worked:         Number(periodForm.days_worked),
         holiday_days_worked: workedHolidays,
         rest_days_worked:    restDaysWorked,
+        vacation_days:       Number(periodForm.vacation_days ?? 0),
       });
       setPreview(result);
     } catch (e: any) {
@@ -203,6 +216,7 @@ export function Payroll() {
         days_worked:         Number(periodForm.days_worked),
         holiday_days_worked: workedHolidays2,
         rest_days_worked:    restDaysWorked,
+        vacation_days:       Number(periodForm.vacation_days ?? 0),
       });
       const approved = await api.payroll.approve(run.id);
       setSavedRun(approved);
@@ -267,7 +281,7 @@ export function Payroll() {
   function handleNewRun() {
     setPreview(null);
     setSavedRun(null);
-    setPeriodForm({ start_date: "", end_date: "", days_worked: "" });
+    setPeriodForm({ start_date: "", end_date: "", days_worked: "", vacation_days: "0" });
   }
 
   const fieldClass = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-terracotta-500/40 focus:border-terracotta-500";
@@ -474,6 +488,38 @@ export function Payroll() {
               : "Si la trabajadora faltó un día ordinario (que no sea festivo), reduce el número de días trabajados."}
           </p>
 
+          {/* ── Vacation days ──────────────────────────────────── */}
+          {vacationBalance && vacationBalance.earned > 0 && (
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-purple-800">
+                  {lang === "en" ? "Vacation Days" : "Días de Vacaciones"}
+                </p>
+                <div className="flex gap-3 text-xs text-purple-700">
+                  <span>{lang === "en" ? "Earned" : "Ganados"}: <strong>{vacationBalance.earned}</strong></span>
+                  <span>{lang === "en" ? "Taken" : "Tomados"}: <strong>{vacationBalance.taken}</strong></span>
+                  <span className="font-semibold">{lang === "en" ? "Remaining" : "Disponibles"}: <strong>{vacationBalance.remaining}</strong></span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-purple-700 whitespace-nowrap">
+                  {lang === "en" ? "Pay vacation days this run:" : "Pagar días de vacaciones en esta nómina:"}
+                </label>
+                <input
+                  type="number" min="0" max={vacationBalance.remaining}
+                  className="w-20 px-3 py-1.5 border border-purple-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  value={periodForm.vacation_days}
+                  onChange={(e) => { setPeriodForm(f => ({ ...f, vacation_days: e.target.value })); setPreview(null); }}
+                />
+              </div>
+              <p className="text-xs text-purple-600">
+                {lang === "en"
+                  ? "Includes vacation pay + 25% prima vacacional (LFT Arts. 76, 80)."
+                  : "Incluye pago de vacaciones + 25% prima vacacional (LFT Arts. 76, 80)."}
+              </p>
+            </div>
+          )}
+
           <Button onClick={handlePreview} loading={previewing}
             disabled={!selectedWorker || !periodForm.start_date || !periodForm.days_worked}>
             {lang === "en" ? "Preview Payroll" : "Vista Previa de Nomina"}
@@ -502,6 +548,13 @@ export function Payroll() {
                   {lang === "en" ? `incl. $${preview.rest_day_bonus.toFixed(2)} rest day bonus` : `incl. $${preview.rest_day_bonus.toFixed(2)} bono descanso`}
                 </p>
               )}
+              {preview.vacation_days > 0 && (
+                <p className="text-xs text-purple-600 mt-1 font-medium">
+                  {lang === "en"
+                    ? `incl. $${(preview.vacation_pay + preview.prima_vacacional).toFixed(2)} vacation (${preview.vacation_days}d + prima)`
+                    : `incl. $${(preview.vacation_pay + preview.prima_vacacional).toFixed(2)} vacaciones (${preview.vacation_days}d + prima)`}
+                </p>
+              )}
             </div>
             <div className="p-4 bg-sage-50 rounded-xl text-center">
               <p className="text-xs text-sage-600 mb-1">{lang === "en" ? "Worker Net Pay" : "Pago Neto (Trabajadora)"}</p>
@@ -514,6 +567,18 @@ export function Payroll() {
           </div>
 
           <div className="space-y-3 mb-5">
+            {preview.vacation_days > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">{lang === "en" ? `Vacation pay (${preview.vacation_days} days)` : `Pago vacaciones (${preview.vacation_days} días)`}</span>
+                  <MoneyAmount amount={preview.vacation_pay} size="sm" className="text-purple-700" />
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">{lang === "en" ? "Prima vacacional (25%)" : "Prima vacacional (25%)"}</span>
+                  <MoneyAmount amount={preview.prima_vacacional} size="sm" className="text-purple-700" />
+                </div>
+              </>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">{lang === "en" ? "Worker IMSS deduction" : "Descuento IMSS (trabajadora)"}</span>
               <MoneyAmount amount={preview.total_deductions} size="sm" className="text-gray-900" />

@@ -99,6 +99,23 @@ const plugin: FastifyPluginAsync = async (fastify) => {
 
     const monthIsrMap = new Map(monthIsrRows.map((r) => [r.worker_id, parseFloat(r.current_month_isr ?? "0")]));
 
+    // Vacation days taken this calendar year
+    const vacationRows = await db
+      .select({
+        worker_id:           payrollRuns.worker_id,
+        vacation_days_taken: sql<number>`cast(sum(${payrollRuns.vacation_days}) as integer)`,
+      })
+      .from(payrollRuns)
+      .where(
+        and(
+          inArray(payrollRuns.worker_id, ids),
+          gte(payrollRuns.period_start, yearStart),
+          lte(payrollRuns.period_end, yearEnd),
+        )
+      )
+      .groupBy(payrollRuns.worker_id);
+    const vacationMap = new Map(vacationRows.map((r) => [r.worker_id, r.vacation_days_taken ?? 0]));
+
     // Most recent payroll run per worker (any time, not just this year)
     const allRuns = await db
       .select({
@@ -132,7 +149,8 @@ const plugin: FastifyPluginAsync = async (fastify) => {
         has_contract: contractSet.has(w.id),
         last_run:     lastRunMap.get(w.id) ?? null,
         ytd:          ytdMap.get(w.id) ?? null,
-        current_month_isr: monthIsrMap.get(w.id) ?? 0,
+        current_month_isr:    monthIsrMap.get(w.id) ?? 0,
+        vacation_days_taken:  vacationMap.get(w.id) ?? 0,
       }))
     );
   });

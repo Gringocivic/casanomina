@@ -11,10 +11,10 @@ import { Card } from "../components/ui/Card";
 import { useLanguage } from "../hooks/useLanguage";
 import {
   ArrowLeft, Save, User, Shield, DollarSign, Download, Send, Copy,
-  CheckCircle2, ChevronDown, AlertTriangle, ExternalLink, Home, Sunset,
+  CheckCircle2, ChevronDown, AlertTriangle, ExternalLink, Home, Sunset, Palmtree,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { RATES_2026 } from "@casanomina/calculator";
+import { RATES_2026, calculateVacationDays, calculateYearsOfService } from "@casanomina/calculator";
 
 const MIN_SALARY = RATES_2026.minimum_daily_wage_general;
 
@@ -76,6 +76,8 @@ export function WorkerProfile() {
   const [copied, setCopied] = useState(false);
   const [imssGuideOpen, setImssGuideOpen] = useState(false);
 
+  const [vacationTaken, setVacationTaken] = useState(0);
+
   const [form, setForm] = useState({
     full_name: "",
     start_date: new Date().toISOString().split("T")[0],
@@ -100,6 +102,11 @@ export function WorkerProfile() {
           days_per_week: String(w.days_per_week ?? 6),
         } as any);
       });
+      // Load vacation_days_taken from the cards endpoint
+      api.workers.cards().then((cards: any[]) => {
+        const match = cards.find((c: any) => c.id === id);
+        if (match) setVacationTaken(match.vacation_days_taken ?? 0);
+      }).catch(() => {});
     }
   }, [id, isNew]);
 
@@ -565,6 +572,43 @@ export function WorkerProfile() {
             </div>
           )}
         </Card>
+
+        {/* ── Vacation Days ────────────────────────────────────── */}
+        {!isNew && (form as any).start_date && (() => {
+          const today = new Date().toISOString().split("T")[0];
+          const years = calculateYearsOfService((form as any).start_date, today);
+          const earned = calculateVacationDays(Math.ceil(years), RATES_2026);
+          const remaining = Math.max(0, earned - vacationTaken);
+          return earned > 0 ? (
+            <Card>
+              <div className="flex items-center gap-2 mb-4">
+                <Palmtree size={16} className="text-purple-500" />
+                <h2 className="font-semibold text-gray-800">
+                  {lang === "en" ? "Vacation Days" : "Días de Vacaciones"}
+                </h2>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-3 bg-purple-50 rounded-xl text-center">
+                  <p className="text-2xl font-bold text-purple-700">{earned}</p>
+                  <p className="text-xs text-purple-600 mt-0.5">{lang === "en" ? "Earned this year" : "Ganados este año"}</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-xl text-center">
+                  <p className="text-2xl font-bold text-gray-600">{vacationTaken}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{lang === "en" ? "Taken" : "Tomados"}</p>
+                </div>
+                <div className={`p-3 rounded-xl text-center ${remaining > 0 ? "bg-sage-50" : "bg-amber-50"}`}>
+                  <p className={`text-2xl font-bold ${remaining > 0 ? "text-sage-700" : "text-amber-600"}`}>{remaining}</p>
+                  <p className={`text-xs mt-0.5 ${remaining > 0 ? "text-sage-600" : "text-amber-600"}`}>{lang === "en" ? "Remaining" : "Disponibles"}</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                {lang === "en"
+                  ? `Based on ${Math.floor(years)} year${Math.floor(years) !== 1 ? "s" : ""} of service (LFT Art. 76, 2023 reform). Pay vacation days from the Payroll page.`
+                  : `Basado en ${Math.floor(years)} año${Math.floor(years) !== 1 ? "s" : ""} de servicio (LFT Art. 76, reforma 2023). Paga días de vacaciones desde la página de Nómina.`}
+              </p>
+            </Card>
+          ) : null;
+        })()}
 
         {/* ── Notes ───────────────────────────────────────────────── */}
         <Card>

@@ -15,7 +15,7 @@ interface WorkerRecord {
   start_date: string;
   daily_salary: string;
   wage_zone: "general" | "northern_border";
-  pay_frequency: "daily" | "weekly" | "biweekly" | "monthly";
+  pay_frequency: "daily" | "weekly" | "biweekly" | "semi-monthly" | "monthly";
   days_per_week: number;
   role?: string | null;
   curp?: string | null;
@@ -194,6 +194,13 @@ function PayslipDoc({ run, worker, config }: {
 
   const totalDed = imssWorkerTotal + isrWithholding;
 
+  // Vacation pay (from breakdown_json — 0 when no vacation days in this run)
+  const vacationDaysPaid = bd?.vacation_days ?? 0;
+  const vacationPay      = bd?.vacation_pay ?? 0;
+  const primaVacacional  = bd?.prima_vacacional ?? 0;
+  const holidayBonus     = bd?.holiday_bonus ?? 0;
+  const restDayBonus     = bd?.rest_day_bonus ?? 0;
+
   // Employer IMSS breakdown
   const empEM  = branches?.enfermedad_maternidad?.employer ?? 0;
   const empIV  = branches?.invalidez_vida?.employer ?? 0;
@@ -288,7 +295,11 @@ function PayslipDoc({ run, worker, config }: {
 
       // ── PERCEPCIONES ──────────────────────────────────────────────────────
       el(Text, { style: S.sectionTitle }, "PERCEPCIONES / EARNINGS"),
-      Row("Sueldo del período", mxn(grossPay), false),
+      Row("Sueldo del período", mxn(grossPay - vacationPay - primaVacacional - holidayBonus - restDayBonus), false),
+      holidayBonus > 0 ? Row("Bono días festivos trabajados (LFT Art. 75)", mxn(holidayBonus), true) : null,
+      restDayBonus > 0 ? Row("Bono descanso trabajado (LFT Art. 73)", mxn(restDayBonus), false) : null,
+      vacationDaysPaid > 0 ? Row(`Pago vacaciones (${vacationDaysPaid} días, LFT Art. 76)`, mxn(vacationPay), true) : null,
+      vacationDaysPaid > 0 ? Row("Prima vacacional (25%, LFT Art. 80)", mxn(primaVacacional), false) : null,
       SubTotal("Total Percepciones", mxn(grossPay)),
 
       // ── DEDUCCIONES ────────────────────────────────────────────────────────

@@ -149,6 +149,8 @@ export interface PayPeriod {
   holiday_days_worked?: number;
   /** Rest days (non-holiday scheduled days off) the worker came in — each earns 2× daily salary (LFT Art. 73). */
   rest_days_worked?: number;
+  /** Vacation days being paid in this period (LFT Arts. 76, 80). Adds vacation pay + prima vacacional. */
+  vacation_days?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +202,12 @@ export interface PayrollResult {
   holiday_bonus: number;
   /** Extra pay for rest days worked: daily_salary × 2 × rest_days_worked (LFT Art. 73). */
   rest_day_bonus: number;
+  /** Vacation days paid this period (0 if none). */
+  vacation_days: number;
+  /** Vacation pay: daily_salary × vacation_days (LFT Art. 76). */
+  vacation_pay: number;
+  /** Prima vacacional: vacation_pay × 25% minimum (LFT Art. 80). */
+  prima_vacacional: number;
   imss: IMSSBreakdown;
   infonavit_employer_contribution: number;
 
