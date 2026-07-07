@@ -300,4 +300,4 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   );
 };
 
-export default plug
+export default plugin
