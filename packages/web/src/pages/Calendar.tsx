@@ -196,8 +196,9 @@ function buildICS(events: Map<string, CalEvent[]>): string {
 
 function googleUrl(e: CalEvent): string {
   const ds = toIcsDate(e.date);
+  const nextDay = toIcsDate(toIso(addDays(isoToDate(e.date), 1)));
   const title = encodeURIComponent(`${e.title}${e.subtitle ? ` – ${e.subtitle}` : ""}`);
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${ds}%2F${ds}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${ds}%2F${nextDay}`;
 }
 
 // ─── Month grid ───────────────────────────────────────────────────────────────
