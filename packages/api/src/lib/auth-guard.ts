@@ -93,3 +93,31 @@ export function ownsResource(
   }
   return true;
 }
+
+/**
+ * Guards an admin-only route using a static API key.
+ *
+ * Set ADMIN_API_KEY in your environment. Requests must include:
+ *   Authorization: Bearer <ADMIN_API_KEY>
+ *
+ * If ADMIN_API_KEY is not set the route is blocked entirely — there is no
+ * dev-mode fallback, because these routes modify global rate configs.
+ */
+export function requireAdmin(req: FastifyRequest, reply: FastifyReply): boolean {
+  const adminKey = process.env.ADMIN_API_KEY;
+
+  if (!adminKey) {
+    reply.status(503).send({ error: "Admin API not configured — set ADMIN_API_KEY env var" });
+    return false;
+  }
+
+  const auth = req.headers.authorization ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+
+  if (!token || token !== adminKey) {
+    reply.status(401).send({ error: "Invalid or missing admin API key" });
+    return false;
+  }
+
+  return true;
+}
