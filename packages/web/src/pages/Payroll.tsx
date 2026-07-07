@@ -91,7 +91,7 @@ function statusLabel(status: string, lang: "en" | "es") {
 export function Payroll() {
   const { lang } = useLanguage();
   const { getToken } = useAuth();
-  const { data: workers } = useApi(async () => {
+  const { data: workers, refetch: refetchWorkers } = useApi(async () => {
     try { return await api.workers.cards(); }
     catch { return api.workers.list(); }
   }, []);
@@ -221,6 +221,7 @@ export function Payroll() {
       const approved = await api.payroll.approve(run.id);
       setSavedRun(approved);
       setHistoryKey(k => k + 1);
+      refetchWorkers(); // re-fetch so vacation_days_taken balance updates
     } catch (e: any) {
       alert(e.message);
     } finally {

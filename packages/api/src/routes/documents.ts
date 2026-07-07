@@ -9,7 +9,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { db } from "../db/client.js";
 import { payrollRuns, payslips, contracts, workers, rateConfigs } from "../db/schema.js";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { createReadStream, existsSync } from "fs";
@@ -36,6 +36,18 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       const [config] = await db.select().from(rateConfigs).where(eq(rateConfigs.id, run.config_id));
       if (!config) return reply.status(404).send({ error: "Rate config not found" });
 
+      // Vacation days taken this calendar year (for paystub remaining balance)
+      const yearStart = `${new Date().getFullYear()}-01-01`;
+      const yearEnd   = `${new Date().getFullYear()}-12-31`;
+      const [vacRow] = await db.select({
+        taken: sql<number>`cast(sum(${payrollRuns.vacation_days}) as integer)`,
+      }).from(payrollRuns).where(
+        and(eq(payrollRuns.worker_id, run.worker_id),
+            gte(payrollRuns.period_start, yearStart),
+            lte(payrollRuns.period_end, yearEnd))
+      );
+      const vacationDaysTakenYTD = vacRow?.taken ?? 0;
+
       const pdfBuffer = await renderPayslipToBuffer(
         {
           id:             run.id,
@@ -61,6 +73,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
           curp:               worker.curp,
           imss_nss:           worker.imss_nss,
           is_imss_registered: worker.is_imss_registered,
+          vacation_days_taken_ytd: vacationDaysTakenYTD,
         },
         {
           config_key:  config.config_key,
@@ -145,6 +158,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
           curp:               worker.curp,
           imss_nss:           worker.imss_nss,
           is_imss_registered: worker.is_imss_registered,
+          vacation_days_taken_ytd: 0,
         },
         contractDate
       );

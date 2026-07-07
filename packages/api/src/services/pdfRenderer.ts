@@ -21,6 +21,7 @@ interface WorkerRecord {
   curp?: string | null;
   imss_nss?: string | null;
   is_imss_registered: boolean;
+  vacation_days_taken_ytd?: number;
 }
 
 interface IMSSBranches {
@@ -383,6 +384,12 @@ function PayslipDoc({ run, worker, config }: {
         AccrualRow(`Aguinaldo acumulado (${daysThisYear} días del año × 15 días/año)`, mxn(aguinaldoAccum)),
         AccrualRow(`Vacaciones (año ${accrualYear} servicio, ${worker.days_per_week ?? 6} días/sem)`, `${vacDays} días`),
         AccrualRow("Prima vacacional estimada (25% sobre vacaciones)", mxn(primaVac)),
+        (worker.vacation_days_taken_ytd ?? 0) > 0 || vacationDaysPaid > 0
+          ? AccrualRow(
+              `Tomados este año / Disponibles`,
+              `${worker.vacation_days_taken_ytd ?? 0} / ${Math.max(0, vacDays - (worker.vacation_days_taken_ytd ?? 0))} días`
+            )
+          : null,
         el(View, { style: S.accrualRow },
           el(Text, { style: { ...S.accrualKey, fontSize: 7, fontStyle: "italic" } },
             "* Estimaciones; la liquidación exacta requiere cálculo al momento del pago / unjustified dismissal adds 3-month indemnity + 20 days/year."),
