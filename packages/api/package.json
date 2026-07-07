@@ -17,7 +17,7 @@
         "@fastify/cors": "^9.0.0",
         "@fastify/helmet": "^11.0.0",
         "@fastify/jwt": "^8.0.0",
-        "@fastify/rate-limit": "^11.1.0",
+        "@fastify/rate-limit": "^9.1.0",
         "@react-pdf/renderer": "^4.5.1",
         "drizzle-orm": "^0.30.0",
         "fastify": "^4.28.0",
