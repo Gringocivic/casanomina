@@ -701,6 +701,13 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
         <p className="text-xs text-gray-500 border-t border-gray-100 pt-2">{ob.detail[lang]}</p>
       )}
       <p className="text-xs text-gray-400 italic">{dataSourceNote}</p>
+      {ob.type === "isr" && (
+        <p className="text-xs text-gray-400 italic mt-1">
+          {lang === "es"
+            ? "El monto retenido puede ser menor al estimado si el último período semanal cruza hacia el mes siguiente — ese ISR se contabiliza en el mes de agosto."
+            : "Withheld may be less than the estimate if the last weekly pay period straddles into the next month — that ISR is counted in August."}
+        </p>
+      )}
     </div>
   );
 }
