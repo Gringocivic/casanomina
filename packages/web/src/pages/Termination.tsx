@@ -132,7 +132,7 @@ export function Termination() {
     const aguinaldoDays   = (daysYTD / 365) * 15;
 
     // Vacation days for next cycle (prorated fraction of the year elapsed)
-    const vacDays         = vacationDaysForYear(yearsCompleted + 1);
+    const vacDays         = Math.round(vacationDaysForYear(yearsCompleted + 1) * (worker.days_per_week ?? 6) / 6);
 
     // Monthly equivalent for constitutional indemnity
     const monthlySalary   = daily * 30;
