@@ -73,9 +73,9 @@ function generatePaydates(worker: any, start: Date, end: Date): string[] {
 
   if (freq === "weekly" || freq === "biweekly") {
     const step = freq === "weekly" ? 7 : 14;
-    // payroll_day: 0=Mon … 6=Sun (JS getDay: 0=Sun,1=Mon…6=Sat)
-    const targetDow = worker.payroll_day != null
-      ? (worker.payroll_day + 1) % 7   // convert Mon-based → JS Sun-based
+    // payroll_dow: 0=Mon … 6=Sun (JS getDay: 0=Sun,1=Mon…6=Sat)
+    const targetDow = worker.payroll_dow != null
+      ? (worker.payroll_dow + 1) % 7   // convert Mon-based → JS Sun-based
       : 5;                              // default Friday (JS 5)
     // Find the first occurrence of targetDow on/after effectiveStart
     const anchor = new Date(effectiveStart);
@@ -103,7 +103,7 @@ function generatePaydates(worker: any, start: Date, end: Date): string[] {
   }
 
   if (freq === "monthly") {
-    const day = worker.payroll_day ?? 30;
+    const day = worker.payroll_dom ?? 30;
     let y = effectiveStart.getFullYear(), m = effectiveStart.getMonth();
     while (new Date(y, m, 1) <= end) {
       const d = new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));

@@ -7,6 +7,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { calculateVacationDays } from "@casanomina/calculator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface WorkerRecord {
@@ -70,14 +71,12 @@ function yearsOfService(startDate: string, asOf: string): number {
   return Math.max(0, ms / (1000 * 60 * 60 * 24 * 365.25));
 }
 
-function vacationDaysEarned(completedYears: number): number {
-  // LFT Art. 76 (Vacaciones Dignas, 2022)
-  if (completedYears < 1) return 0;
-  const table = [12, 14, 16, 18, 20];
-  const idx = Math.min(Math.floor(completedYears) - 1, table.length - 1);
-  if (Math.floor(completedYears) <= 5) return table[idx];
-  // +2 days every 5 years after year 5
-  return 20 + 2 * Math.floor((Math.floor(completedYears) - 5) / 5);
+// Vacation days earned — delegates to the calculator package so the paystub
+// always reflects the same config-driven table as the rest of the app.
+// LFT Art. 76: vacation is earned only after completing a full year of service.
+// Workers with less than 1 year get 0; floor is correct (no Math.max(1)).
+function vacationDaysEarned(yearsFloat: number, config: any): number {
+  return calculateVacationDays(Math.floor(yearsFloat), config);
 }
 
 function daysInYear(periodEnd: string): number {
@@ -213,9 +212,11 @@ function PayslipDoc({ run, worker, config }: {
   // Accruals (informational estimates)
   const dailySalary    = parseFloat(worker.daily_salary);
   const yearsFloat     = yearsOfService(worker.start_date, run.period_end);
-  // Use ceil so workers see their upcoming entitlement even before the anniversary
+  // vacationDaysEarned now delegates to calculateVacationDays (config-driven).
+  // Pass yearsFloat directly — the function floors and clamps to >=1 internally.
   const accrualYear    = Math.max(1, Math.floor(yearsFloat));
-  const vacDaysRaw     = vacationDaysEarned(accrualYear);
+  const ratesConfig    = config.config_data as any;
+  const vacDaysRaw     = vacationDaysEarned(yearsFloat, ratesConfig);
   // Prorate for part-time workers (same as UI)
   const vacDays        = Math.round(vacDaysRaw * (worker.days_per_week ?? 6) / 6);
   const primaVac       = vacDays * dailySalary * 0.25;

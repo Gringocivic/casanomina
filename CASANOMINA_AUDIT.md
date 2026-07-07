@@ -1,0 +1,118 @@
+# CasaNomina — Technical Audit Report
+
+**Scope:** Security, calculation correctness, functional API testing, and code quality.
+**Date:** 2026-07-07 · **Codebase commit:** `e4ca20f` (branch working tree)
+**Method:** Static review of `packages/api`, `packages/calculator`, `packages/web`; the calculator was compiled from current `src/` and executed against the Part 3 scenarios locally (see note on Part 3).
+
+> **Note on Part 3 (live API testing).** The live API could not be exercised. The provided bearer token is a Clerk session JWT with a **60-second lifetime** (`iat` 04:54:25 UTC → `exp` 04:55:25 UTC, 2026-07-07); it was already expired when received. Independently, the sandbox network blocks outbound requests to `casanomina-api.up.railway.app` (egress proxy returns `403 blocked-by-allowlist`). Rather than skip the functional checks, I compiled the current calculator source and ran the exact Part 3 payroll scenarios through it. Those results are reported in Part 3 below and are representative of the code path the API invokes (`calculatePayroll`).
+
+---
+
+## 🔴 Critical Issues
+
+### C1. `POST /api/config` creates/activates global rate configs with **no authentication**
+**File:** `packages/api/src/routes/config.ts:54–77` (route), config plugin registered at `server.ts:187`.
+Neither `POST /api/config` nor the `GET` endpoints call `requireEmployer()`. Any unauthenticated caller can POST a new rate config and pass `make_active: true`, which **deactivates the current config and makes the attacker's config the single global active config** (lines 58–63). Every payroll, IMSS, ISR, SBC, finiquito and liquidación calculation for **every employer** reads `rateConfigs.is_active = true`. The body is validated only as `config_data: z.record(z.unknown())` (line 50) — arbitrary structure — so an attacker can zero out ISR, inflate deductions, or break all calculations app-wide. The code comment even admits the gap: `// (admin only — add preHandler ... in prod)`.
+**Fix:** Gate all mutating config routes behind an admin/employer guard (and ideally a dedicated admin role, since a single tenant editing global rates affects all tenants). Validate `config_data` against the `RatesConfig` schema, not `z.record(z.unknown())`. Consider making rate configs read-only at runtime and seeded via migration/ops only.
+
+### C2. ISR over-withheld from minimum-wage workers — stale "Subsidio para el Empleo" model
+**Files:** `packages/calculator/src/calculations/core.ts:168–217` (logic); `packages/calculator/src/config/rates.2026.json` (`isr_employment_subsidy_monthly`).
+The subsidy is modeled as the **pre-2024 bracketed "subsidio para el empleo" table**, whose top bracket (`≥ 7,382.34/month`) grants **$0 subsidy**. The 2026 general minimum wage is `315.04/day` → `9,451/month`, which lands in the $0-subsidy bracket. Running the current source for a minimum-wage worker (weekly, 6 days) yields:
+`monthly_isr_gross = 711.19`, `subsidy = 0`, `period_isr_withholding = 142.24/week (~$616/month)`.
+The **May 2024 reform (DOF 01-May-2024)** replaced that table with a flat **subsidio al empleo = 13.8% of monthly UMA** (~$475/month) for monthly income up to ~$10,171 — precisely to keep minimum-wage earners at ~$0 ISR and preserve the constitutional rule that the minimum wage is not reduced by withholding. As shipped, CasaNomina **withholds ISR from minimum-wage domestic workers**, understating net pay and causing incorrect SAT remittances.
+**Fix:** Implement the current subsidio al empleo (flat 13.8%×UMA with the income ceiling) and update the config. Add ISR unit tests at minimum wage, just below and above the ceiling. (See also C3 — ISR is entirely untested.)
+
+### C3. `calculateISR` and the vacation/holiday/rest-pay path have **no test coverage**
+**Files:** `packages/calculator/tests/core.test.ts`, `packages/calculator/tests/payroll.test.ts`.
+The most legally sensitive routine (`calculateISR`) has **zero tests**. `calculatePayroll` is only tested with plain `days_worked` (no vacation/holiday/rest), so the vacation-pay + prima-vacacional logic added to `payroll.ts` is unverified by the suite. This is not merely a gap: it is why a **stale compiled `dist/`** (which omitted vacation pay, prima, holiday/rest bonuses, and seniority-aware SBC entirely) sat in the tree undetected — my first execution against `dist/` returned identical results for "0 vacation days" and "2 vacation days." `dist/` is git-ignored and untracked (so not shipped via git), but the missing tests are the real defect: a wrong build cannot be caught.
+**Fix:** Add tests for ISR (all frequencies, subsidy boundary, min wage), for payroll with vacation/holiday/rest days, and for part-time proration. Fix the currently-failing test (see I1) so the suite is green and CI can block regressions.
+
+---
+
+## 🟡 Important Issues
+
+### I1. Payroll test suite ships **red** — IMSS period-total rounding drift
+**File:** `packages/calculator/src/calculations/payroll.ts:69–75, 118–130`; failing test `tests/payroll.test.ts:50–57`.
+`npm test` fails: `expected 614 to be close to 613.40`. `scaleImssBranches` rounds each branch to 2 decimals **then** sums, while the parallel `total_employer` multiplies the daily total by the factor — the two paths diverge by up to ~₱0.60/period. Payslip branch rows can therefore not sum to the stated IMSS total.
+**Fix:** Compute period branch amounts, then derive totals by summing the (already-rounded) branch values so the payslip reconciles; or round only once at the end. Then update/repair the assertion.
+
+### I2. IMSS is scaled by `days_worked`, not insured **calendar days**
+**File:** `packages/calculator/src/calculations/payroll.ts:66–75` (`periodFactor = period.days_worked`).
+IMSS contributions (including the per-UMA *cuota fija*) are owed for every day the worker is insured, i.e. **7 calendar days per week**, not the 6 worked days. For the Part 3 weekly worker the code charges 6/7 of the correct IMSS (`imss_employer = 403.80` for 6 days vs ~₱471 for 7). Systematic under-contribution accumulates to ~4 missing days/month and creates IMSS liability plus under-withholding of the worker's share.
+**Fix:** Drive IMSS by the number of insured calendar days in the period (typically 7/week or the days registered with IMSS), decoupled from `days_worked`. Confirm the intended registration convention for the PTH program.
+
+### I3. Finiquito proportional aguinaldo counts from **Jan 1**, ignoring hire date
+**File:** `packages/calculator/src/calculations/payroll.ts:156–159`.
+`daysWorkedThisYear = daysBetweenInclusive(`${year}-01-01`, terminationDate)` uses Jan 1 even for a worker hired mid-year. A worker hired 2026-06-01 and terminated 2026-09-01 is credited ~244 days instead of 92 → aguinaldo overstated ~2.6×.
+**Fix:** Use `max(yearStart, worker.start_date)` as the start of the accrual window.
+
+### I4. Auth guards **fail open** when `CLERK_SECRET_KEY` is unset
+**File:** `packages/api/src/lib/auth-guard.ts:30, 55, 87`.
+`requireEmployer`, `requireWorker`, and `ownsResource` all `return true` when `CLERK_SECRET_KEY` is absent, and the auth preHandler then falls back to `DEV_EMPLOYER_ID` (`server.ts:63,106,125–134`, which also **skips JWT signature verification** in that mode). The current `.env` sets a **test** key (`sk_test_…`), so production behaves correctly *today* — but a single missing/blank env var silently opens the entire API and disables signature checks. Fail-open on a payroll system is dangerous.
+**Fix:** Require `CLERK_SECRET_KEY` in production (fail fast at boot if unset when `NODE_ENV=production`); never accept unsigned tokens outside an explicit local-dev flag. Also plan to move from `sk_test_` to a live Clerk instance before launch.
+
+### I5. Payslip download skips ownership check when the worker row is missing
+**File:** `packages/api/src/routes/documents.ts:114–126`.
+`if (worker && !ownsResource(...)) return;` — when `worker` is falsy (e.g., hard-deleted), the ownership check is **bypassed** and the PDF is streamed. Workers are normally soft-deleted (so the row persists), which is the only reason this isn't currently exploitable, but the guard is inverted.
+**Fix:** `if (!worker || !ownsResource(req, worker.employer_id, reply)) return reply.status(404/403)…`.
+
+### I6. Payruns can be approved/paid repeatedly and status can **regress**
+**File:** `packages/api/src/routes/payroll.ts:162–182 (approve), 185–204 (mark-paid)`.
+Neither transition checks the current status. `POST /:id/approve` sets `status:"approved"` unconditionally — it can be called twice (re-stamping `approved_at`/`approved_by`) and, worse, can be invoked on an already-**paid** run, regressing `paid → approved`. `mark-paid` likewise lets a `draft` jump straight to `paid`, skipping approval, and can re-stamp `paid_at`.
+**Fix:** Guard the update with the expected prior state, e.g. `.where(and(eq(id), eq(status,'draft')))` for approve and `eq(status,'approved')` for mark-paid; return `409 Conflict` when no row is updated. Consider a state-machine enum.
+
+### I7. Vacation "days earned" is computed **three different ways** — inconsistent across screens and the payslip
+**Files:** `packages/web/src/pages/Payroll.tsx:178` (`Math.ceil(years)`), `WorkerProfile.tsx:580` (`Math.max(1, Math.floor(years))`), `Workers.tsx:235` (`calculateYearsOfService` → floor), `Termination.tsx:135` (`yearsCompleted + 1`), and `packages/api/src/services/pdfRenderer.ts:73–81` (its **own hardcoded** `vacationDaysEarned`).
+Two problems:
+1. **Rounding disagreement.** For a worker at 2.4 years, the Payroll page (`ceil`→year 3→16 days) shows a higher balance than the Workers list / profile (`floor`→year 2→14 days). `Payroll.tsx`'s `ceil` also **over-credits** entitlement before the anniversary is reached, and it drives the `max` on the "pay vacation days" input (`Payroll.tsx:510`), so an employer can pay out vacation not yet earned.
+2. **pdfRenderer diverges from the law/config.** `vacationDaysEarned` returns 20 days for years 6–9 and 22 for years 10–14, whereas LFT/the config give **22 for years 6–10 and 24 for years 11–15**. The payslip therefore understates accrued vacation for anyone with 6+ years. (Its comment says "use ceil" but the code uses `Math.floor` — code/comment mismatch too.)
+**Fix:** Compute entitlement in exactly one place (the calculator's config-driven `calculateVacationDays`) with a single agreed rounding rule (completed years / `floor`), and have the web pages and `pdfRenderer` call it. Delete `pdfRenderer.vacationDaysEarned`.
+
+### I8. Anniversary-year vacation counting mishandles the Feb-29 hire edge case
+**Files:** `packages/api/src/routes/workers.ts:111–121`, `packages/api/src/routes/documents.ts:41–52`.
+`new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())` for a Feb-29 hire in a non-leap year rolls over to **Mar 1** (JS date overflow), shifting the anniversary boundary by a day and mis-slicing which runs count as "taken this cycle." Dec-31 and first-year cases are handled correctly. There is also a latent timezone fragility: locally-constructed dates are compared/emitted via `toISOString()` (UTC) — correct on a UTC server (Railway) but off-by-one on a UTC-positive host.
+**Fix:** Clamp Feb-29 to Feb-28 in non-leap years; do all anniversary math in a single timezone (UTC) using date-only arithmetic.
+
+---
+
+## 🟢 Suggestions
+
+- **ISR ignores taxable premium pay.** `calculateISR` is based solely on `daily_salary × 30` (`core.ts:188`); holiday/rest premiums added to gross aren't in the ISR base. Prima vacacional/aguinaldo have exemptions, but rest/holiday premiums are largely taxable — revisit once C2 is done. (`payroll.ts:84`.)
+- **ISR bracket vs. proration day mismatch.** Bracket is chosen on a 30-day income but prorated by `days_worked` (`core.ts:188,208`); a 26-day monthly period is taxed on a 30-day bracket then scaled ×26/30, slightly under-withholding. Minor; document the convention.
+- **`ceav_schedule` and `uma_daily_value_jan_2026` are dead config.** Both are defined in `rates.2026.json` and `types/index.ts` but never read by any calculation (`grep` confirms). In particular `core.ts:57` always uses `uma_daily_value` (117.31), so **January 2026 payrolls use the wrong UMA** — the config supplies `uma_daily_value_jan_2026 = 113.14` for the Jan transition but nothing consumes it. Either wire up date-aware UMA selection or remove the misleading fields.
+- **`POST /api/calculate/*` are unauthenticated and hit the DB** (`calculate.ts:29–91`, read active config only). Acceptable as public calculators, but add rate limiting; the same applies to `GET /api/documents/sample-contract` (`documents.ts:220–246`), which triggers PDF generation with no auth or throttle (DoS surface).
+- **No rate limiting anywhere.** No `@fastify/rate-limit` is registered (`server.ts`). Add global + stricter per-route limits, especially on PDF and calc endpoints.
+- **Raw `req.body` access without Zod** in a few handlers: `workers.ts:251` (`/invite`), `payroll.ts` uses `PeriodSchema.parse` (throws → 500 instead of 400), `auth.ts:53`, `config.ts:55`, and dead `misc.ts:62`. Prefer `safeParse` + `400` consistently.
+- **`misc.ts` is dead code** (not registered in `server.ts`) but contains an **unauthenticated, raw-body `POST /cms`** — remove it so it can't be wired up by accident.
+- **`workers.ts /cards` loads all payroll runs into memory** to compute vacation-taken and last-run in JS (`workers.ts:104–139`). Not N+1 (fixed 6 queries), but it scans every run for every worker on each page load; move the anniversary aggregation into SQL as the dataset grows.
+- **pdfRenderer layout** is mostly flexbox (robust), but the footer uses hardcoded absolute offsets tied to page padding (`36/48`, `pdfRenderer.ts:166,429`), it's single-page with no overflow handling for long content, and `mxn()` uses `Math.abs` (`:59`) so an unexpectedly negative net would render as positive. Low risk; tidy when convenient.
+- **Calendar `payroll_day` is overloaded** across frequencies (`Calendar.tsx:77,106`): day-of-week for weekly/biweekly, day-of-month for monthly, ignored for semi-monthly. A monthly worker with `payroll_day = 0` (allowed by the schema, `0 ?? 30 = 0`) yields `new Date(y, m, 0)` = last day of the **previous** month. Split into distinct fields or validate per frequency.
+- **`.env` correctly git-ignored** and untracked (good), but it holds a live-usable `sk_test_` secret in the working tree — rotate before it leaks and switch to a production Clerk instance.
+
+---
+
+## ✅ Confirmed Correct
+
+- **Auth guard coverage** on data routes: `workers.ts`, `payroll.ts`, `documents.ts`, `worker-portal.ts`, `employer-profile.ts`, and `cms.ts` (mutations) all call `requireEmployer`/`requireWorker` before touching the DB. (Gaps are only `config.ts` — C1 — and the intentional public calc/sample endpoints.)
+- **Cross-employer scoping:** worker/payroll queries filter by `employer_id` or verify via `ownsResource` (`workers.ts:169,180,216,229`; `payroll.ts:38,72,136,152,173,195`). Only the inverted guard in I5 is at risk.
+- **Worker portal isolation:** `worker-portal.ts` resolves the worker from `workerAccountId` server-side and rejects mismatched runs with 403 (`worker-portal.ts:33–48,103–110`). A worker cannot reach another worker's or any employer's data.
+- **Path traversal:** file paths are built from DB-sourced UUIDs (`worker.id`, `run.id`, DB `period_start`), not raw request params; params are only used in parameterized `eq()` lookups. No escape from `DOCS_DIR` (`documents.ts:88–92,169–173`).
+- **JWT handling:** no hardcoded secret; verification is delegated to Clerk (`verifyToken`, `server.ts:137`) and token expiry is Clerk-managed (the 60-second tokens confirm short expiry is enforced).
+- **SQL injection:** Drizzle is used with parameterized column references throughout; `grep` found no user input interpolated into `sql\`` templates (only `excluded.config_data` in an upsert). Safe.
+- **CORS** restricts to `FRONTEND_URL` allowlist (`server.ts:79–94`); Helmet is registered.
+- **Vacation table (LFT Art. 76):** `rates.2026.json` matches the reform exactly — 12/14/16/18/20, 22 for yrs 6–10, 24 for 11–15, 26 for 16–20, +2/5yrs — and `calculateVacationDays` reads it correctly (`core.test.ts` covers these). *(Note: the payslip's separate implementation does not — see I7.)*
+- **Prima vacacional (Art. 80):** `daily × days × 0.25` — correct (`core.ts:261–267`).
+- **Aguinaldo (Art. 87):** `15/365 × days × daily`, capped at 365 — correct proration (`core.ts:280–289`).
+- **SBC integration factor (LSS Art. 27):** `1 + (aguinaldo_days + vacDays × prima%) / 365`, seniority-aware — correct (`core.ts:37–43`); config factor 1.0493 matches its documented derivation.
+- **IMSS branch rates** in `rates.2026.json` match the general-regime structure (cuota fija 20.4% UMA; excedente 1.1%/0.4% over 3 UMA; IV 1.75%/0.625%; retiro 2%/0; CV 3.1%/1.125%; guarderías 1%/0; RT class I 0.54%; INFONAVIT 5%). Branch math and the 3-UMA excedente threshold are implemented correctly (`core.ts:56–132`, covered by `core.test.ts`).
+- **Part 3 payroll scenarios (run against current source):**
+  - *Test 2* — weekly, 6 days, ₱400/day: **gross ₱2,400** (6×400) ✓; IMSS worker ₱61.56, IMSS employer ₱403.80, ISR ₱206.63, net ₱2,131.81 — deductions non-negative and plausible. ✓
+  - *Test 3* — 6 days incl. 2 vacation: **regular days 4, vacation 2**, gross ₱2,600 = Test 2 + ₱200, where **₱200 is exactly the prima on 2 days** (400×2×25%). Gross exceeds Test 2 by only the prima, as required. ✓
+  - *Test 4* — monthly, 26 days: ISR computed on the monthly-equivalent bracket (₱1,033.15/mo) prorated ×26/30 = ₱895.39, i.e. the monthly bracket is used, not a weekly one. ✓ (frequency-agnostic; see suggestion on the 30-vs-days proration.)
+  - *Test 5 (cross-employer)* — code path confirms `GET /api/workers/:id` filters by `employer_id` and returns **404** for a non-owned/nonexistent UUID (`workers.ts:174–183`); preview/other routes return **403** via `ownsResource`. Behavior is correct by inspection (could not exercise live).
+
+---
+
+## Overall Assessment
+
+CasaNomina is a thoughtfully structured codebase with genuinely strong bones: the calculator is pure and well-documented with legal citations, the config is versioned and mostly matches 2026 Mexican law, tenant scoping is applied consistently on the data routes, and the worker portal is properly isolated. It is **not yet production-ready**, primarily for three reasons: an unauthenticated global-config write that any anonymous caller can use to corrupt every tenant's payroll (C1); an ISR/subsidy model that is stale against the May-2024 reform and consequently withholds tax from minimum-wage workers (C2); and the near-total absence of tests around the most legally consequential code — ISR and the vacation/premium pay path — which is exactly why a stale build and a red test currently coexist in the tree undetected (C3, I1). Beneath those sit a cluster of correctness bugs that produce wrong money in edge cases (IMSS charged on worked rather than insured days, mid-year finiquito aguinaldo, three divergent vacation-entitlement formulas, double-approval/status regression) and a fail-open auth posture that one missing env var would expose. None are architecturally deep; all are fixable within the existing design. I'd gate launch on C1–C3 and I2–I6, add the missing calculator tests as the regression backstop, then re-run a focused pass on the money-path edge cases before handling real payroll.

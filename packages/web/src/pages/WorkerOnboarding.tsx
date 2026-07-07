@@ -27,14 +27,7 @@ import { QRCodeSVG } from "qrcode.react";
 const MIN_WAGE_GENERAL = RATES_2026.minimum_daily_wage_general;
 const MIN_WAGE_BORDER  = RATES_2026.minimum_daily_wage_northern_border;
 
-const ROLES = [
-  { value: "housekeeper", en: "Housekeeper",       es: "Ama de llaves" },
-  { value: "nanny",       en: "Nanny / Caregiver", es: "Niñera / Cuidadora" },
-  { value: "cook",        en: "Cook",               es: "Cocinera" },
-  { value: "gardener",    en: "Gardener",            es: "Jardinero" },
-  { value: "driver",      en: "Driver",              es: "Chofer" },
-  { value: "caregiver",   en: "Elder Caregiver",    es: "Cuidadora de adultos" },
-];
+import { ROLES } from "../lib/roles";
 
 const STEPS = [
   { icon: User,     en: "Info",     es: "Datos" },
@@ -110,6 +103,9 @@ export function WorkerOnboarding() {
     curp:       "",
   });
 
+  // Tracks whether the user has selected "Other (custom)" for role
+  const [roleIsCustom, setRoleIsCustom] = useState(false);
+
   // Step 2 — Terms
   const [terms, setTerms] = useState({
     daily_salary:  String(MIN_WAGE_GENERAL),
@@ -117,7 +113,8 @@ export function WorkerOnboarding() {
     pay_frequency: "weekly" as "weekly" | "biweekly" | "semi-monthly" | "monthly",
     days_per_week: "6",
     live_in:       false,
-    payroll_day:   4,  // 0=Mon…6=Sun for weekly/biweekly; 1-28 for monthly; ignored for semi-monthly
+    payroll_dow:   4,  // 0=Mon…6=Sun — for weekly/biweekly
+    payroll_dom:   30, // 1-28 — for monthly
   });
 
   // Step 4 — IMSS
@@ -159,7 +156,9 @@ export function WorkerOnboarding() {
       pay_frequency: terms.pay_frequency,
       days_per_week: Number(terms.days_per_week),
       live_in:       terms.live_in,
-      payroll_day:   terms.pay_frequency === "semi-monthly" ? null : terms.payroll_day,
+      payroll_dow:   (terms.pay_frequency === "weekly" || terms.pay_frequency === "biweekly")
+                       ? terms.payroll_dow : null,
+      payroll_dom:   terms.pay_frequency === "monthly" ? terms.payroll_dom : null,
     };
     try {
       if (workerId) {
@@ -279,10 +278,33 @@ export function WorkerOnboarding() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Role" : "Puesto"}</label>
-                <select className={fieldClass} value={info.role} onChange={(e) => setInfo({ ...info, role: e.target.value })}>
+                <select
+                  className={fieldClass}
+                  value={roleIsCustom ? "__other__" : info.role}
+                  onChange={(e) => {
+                    if (e.target.value === "__other__") {
+                      setRoleIsCustom(true);
+                      setInfo({ ...info, role: "" });
+                    } else {
+                      setRoleIsCustom(false);
+                      setInfo({ ...info, role: e.target.value });
+                    }
+                  }}
+                >
                   <option value="">{lang === "en" ? "Select…" : "Seleccionar…"}</option>
                   {ROLES.map((r) => <option key={r.value} value={r.value}>{r[lang]}</option>)}
+                  <option value="__other__">{lang === "en" ? "Other (custom)…" : "Otro (personalizado)…"}</option>
                 </select>
+                {roleIsCustom && (
+                  <input
+                    type="text"
+                    className={fieldClass + " mt-2"}
+                    placeholder={lang === "en" ? "Enter role title…" : "Escribe el puesto…"}
+                    value={info.role}
+                    onChange={(e) => setInfo({ ...info, role: e.target.value })}
+                    autoFocus
+                  />
+                )}
               </div>
               <div>
                 <label className={labelClass}>{lang === "en" ? "Start Date *" : "Fecha de Inicio *"}</label>
@@ -357,9 +379,7 @@ export function WorkerOnboarding() {
                 <label className={labelClass}>{lang === "en" ? "Pay Frequency" : "Frecuencia de Pago"}</label>
                 <select className={fieldClass} value={terms.pay_frequency} onChange={(e) => {
                   const freq = e.target.value as any;
-                  // Reset payroll_day to sensible default when frequency changes
-                  const defaultDay = freq === "monthly" ? 30 : freq === "semi-monthly" ? 0 : 4;
-                  setTerms({ ...terms, pay_frequency: freq, payroll_day: defaultDay });
+                  setTerms({ ...terms, pay_frequency: freq });
                 }}>
                   <option value="weekly">{lang === "en" ? "Weekly" : "Semanal"}</option>
                   <option value="biweekly">{lang === "en" ? "Bi-weekly (every 2 weeks)" : "Catorcenal (cada 2 semanas)"}</option>
@@ -392,9 +412,9 @@ export function WorkerOnboarding() {
                     <button
                       key={i}
                       type="button"
-                      onClick={() => setTerms({ ...terms, payroll_day: i })}
+                      onClick={() => setTerms({ ...terms, payroll_dow: i })}
                       className={`py-2 rounded-xl text-xs font-medium border-2 transition-colors ${
-                        terms.payroll_day === i
+                        terms.payroll_dow === i
                           ? "border-terracotta-500 bg-terracotta-50 text-terracotta-700"
                           : "border-gray-200 text-gray-500 hover:border-gray-300"
                       }`}
@@ -409,7 +429,7 @@ export function WorkerOnboarding() {
                     {(lang === "en"
                       ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
                       : ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"]
-                    )[terms.payroll_day]}
+                    )[terms.payroll_dow]}
                   </span>
                   {terms.pay_frequency === "biweekly" && (lang === "en" ? " (every other week)" : " (cada dos semanas)")}
                 </p>
@@ -427,8 +447,8 @@ export function WorkerOnboarding() {
                     min={1}
                     max={28}
                     className={`w-24 ${fieldClass}`}
-                    value={terms.payroll_day}
-                    onChange={(e) => setTerms({ ...terms, payroll_day: Math.min(28, Math.max(1, Number(e.target.value))) })}
+                    value={terms.payroll_dom}
+                    onChange={(e) => setTerms({ ...terms, payroll_dom: Math.min(28, Math.max(1, Number(e.target.value))) })}
                   />
                   <p className="text-xs text-gray-400">
                     {lang === "en"
@@ -534,16 +554,19 @@ export function WorkerOnboarding() {
                 value={`$${Number(terms.daily_salary).toFixed(2)} MXN`}
               />
               <TermRow label={lang === "en" ? "Pay frequency" : "Frecuencia de pago"} value={freqLabel(terms.pay_frequency)} />
-              {terms.pay_frequency !== "semi-monthly" && terms.payroll_day != null && (
+              {terms.pay_frequency === "monthly" && (
+                <TermRow
+                  label={lang === "en" ? "Pay day" : "Día de pago"}
+                  value={lang === "en" ? `Day ${terms.payroll_dom} of each month` : `Día ${terms.payroll_dom} de cada mes`}
+                />
+              )}
+              {(terms.pay_frequency === "weekly" || terms.pay_frequency === "biweekly") && (
                 <TermRow
                   label={lang === "en" ? "Pay day" : "Día de pago"}
                   value={
-                    terms.pay_frequency === "monthly"
-                      ? (lang === "en" ? `Day ${terms.payroll_day} of each month` : `Día ${terms.payroll_day} de cada mes`)
-                      : (lang === "en"
-                          ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][terms.payroll_day]
-                          : ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][terms.payroll_day])
-                  }
+                    lang === "en"
+                      ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][terms.payroll_dow]
+                      : ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][terms.payroll_dow]}
                 />
               )}
               <TermRow

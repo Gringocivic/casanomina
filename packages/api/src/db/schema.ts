@@ -96,7 +96,8 @@ export const workers = pgTable("workers", {
   imss_nss:           varchar("imss_nss", { length: 11 }),  // IMSS affiliation #
   is_imss_registered: boolean("is_imss_registered").notNull().default(false),
   live_in:            boolean("live_in").notNull().default(false),      // live-in vs. live-out
-  payroll_day:        integer("payroll_day"),                              // 0=Mon…6=Sun for weekly/biweekly; 1-28 for monthly
+  payroll_dow:        integer("payroll_dow"),  // 0=Mon…6=Sun — weekly/biweekly pay day of week
+  payroll_dom:        integer("payroll_dom"),  // 1-28 — monthly pay day of month
   notes:              text("notes"),
   created_at:         timestamp("created_at").notNull().defaultNow(),
   updated_at:         timestamp("updated_at").notNull().defaultNow(),

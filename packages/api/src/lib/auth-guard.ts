@@ -16,7 +16,8 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 /**
  * Guards an employer-only route.
  *
- * - In dev mode (no CLERK_SECRET_KEY): always passes through.
+ * - In dev mode (no CLERK_SECRET_KEY, NODE_ENV !== "production"): passes through.
+ * - In production with no CLERK_SECRET_KEY: 503 — misconfigured deployment.
  * - With Clerk configured:
  *   - No token / expired token → 401 Unauthorized
  *   - Authenticated but role !== "employer" → 403 Forbidden
@@ -26,8 +27,15 @@ import type { FastifyRequest, FastifyReply } from "fastify";
  * already been sent (caller should just `return` without sending anything).
  */
 export function requireEmployer(req: FastifyRequest, reply: FastifyReply): boolean {
-  // Dev mode — no Clerk configured, allow everything.
-  if (!process.env.CLERK_SECRET_KEY) return true;
+  if (!process.env.CLERK_SECRET_KEY) {
+    // Production with no Clerk key = misconfigured deployment. Fail closed.
+    if (process.env.NODE_ENV === "production") {
+      reply.status(503).send({ error: "Authentication not configured — set CLERK_SECRET_KEY" });
+      return false;
+    }
+    // Dev passthrough: allow everything when Clerk is not set up locally.
+    return true;
+  }
 
   const r = req as FastifyRequest & {
     clerkUserId: string | null;
@@ -52,7 +60,13 @@ export function requireEmployer(req: FastifyRequest, reply: FastifyReply): boole
  * Mirrors requireEmployer but checks for the "worker" role.
  */
 export function requireWorker(req: FastifyRequest, reply: FastifyReply): boolean {
-  if (!process.env.CLERK_SECRET_KEY) return true;
+  if (!process.env.CLERK_SECRET_KEY) {
+    if (process.env.NODE_ENV === "production") {
+      reply.status(503).send({ error: "Authentication not configured — set CLERK_SECRET_KEY" });
+      return false;
+    }
+    return true;
+  }
 
   const r = req as FastifyRequest & {
     clerkUserId: string | null;

@@ -154,8 +154,12 @@ export function calculateFiniquito(
   const pendingWages = 0;
 
   // Proportional aguinaldo: days worked this calendar year up to termination.
+  // Use the later of Jan 1 and the worker's actual hire date so mid-year
+  // starters don't receive aguinaldo for days before they were employed
+  // (LFT Art. 87 — proportional to days worked in the current year).
   const yearStart = `${terminationDate.getFullYear()}-01-01`;
-  const daysWorkedThisYear = daysBetweenInclusive(yearStart, terminationDateStr);
+  const effectiveStart = worker.start_date > yearStart ? worker.start_date : yearStart;
+  const daysWorkedThisYear = daysBetweenInclusive(effectiveStart, terminationDateStr);
   const proportionalAguinaldo = calculateAguinaldo(worker.daily_salary, daysWorkedThisYear, config);
 
   // Proportional vacation: fraction of current service-year elapsed.
@@ -252,7 +256,11 @@ export function calculateLiquidacion(
 
 function getAnniversaryDate(startDate: string, completedYears: number, asOfDate: string): string {
   const start = new Date(startDate);
-  const anniversary = new Date(start.getFullYear() + completedYears, start.getMonth(), start.getDate());
+  const targetYear = start.getFullYear() + completedYears;
+  // Cap to last day of the month so Feb-29 hire dates don't roll to March 1
+  // in non-leap years (JS Date constructor silently overflows).
+  const lastDay = new Date(targetYear, start.getMonth() + 1, 0).getDate();
+  const anniversary = new Date(targetYear, start.getMonth(), Math.min(start.getDate(), lastDay));
   return anniversary.toISOString().split("T")[0];
 }
 

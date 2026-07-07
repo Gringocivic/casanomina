@@ -13,6 +13,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import rateLimit from "@fastify/rate-limit";
 import { createClerkClient, verifyToken } from "@clerk/backend";
 
 import configRoutes from "./routes/config.js";
@@ -76,6 +77,24 @@ export async function buildServer() {
   await fastify.register(helmet, {
     contentSecurityPolicy: false,
   });
+  // ── Rate limiting ─────────────────────────────────────────────────────────
+  // Registered only in production. Heavy endpoints (PDF generation, payroll
+  // preview) declare tighter limits via per-route config.
+  // Skipped in dev/test so local iteration is never throttled.
+  if (process.env.NODE_ENV === "production") {
+    await fastify.register(rateLimit, {
+      global: true,
+      max: 200,
+      timeWindow: "1 minute",
+      skipOnError: true,
+      errorResponseBuilder: (_req: import("fastify").FastifyRequest, context) => ({
+        statusCode: 429,
+        error: "Too Many Requests",
+        message: "Rate limit exceeded, retry after " + context.after,
+      }),
+    });
+  }
+
   await fastify.register(cors, {
     origin: (origin, cb) => {
       const allowed = (process.env.FRONTEND_URL ?? "http://localhost:5173")

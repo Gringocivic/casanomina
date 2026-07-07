@@ -169,30 +169,28 @@ function nextIsrDue(today: Date): {
   return { due, period: MONTHS_ES[mo], periodStart, periodEnd };
 }
 
-/** Next worker payroll due date. Uses payroll_day if set. */
+/** Next worker payroll due date. Uses payroll_dow (weekly/biweekly) or payroll_dom (monthly). */
 function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
   const freq: string = worker.pay_frequency ?? "weekly";
-  const payDay: number | null | undefined = worker.payroll_day;
 
-  if (payDay == null) {
-    const freqDays: Record<string, number> = { weekly: 7, biweekly: 14, "semi-monthly": 15, monthly: 30 };
-    const base = worker.last_run?.period_end
-      ? isoToDate(worker.last_run.period_end)
-      : isoToDate(worker.start_date);
-    return addDays(base, freqDays[freq] ?? 7);
-  }
-
-  if (freq === "weekly") {
-    const tomorrow = addDays(today, 1);
-    const tDow = (tomorrow.getDay() + 6) % 7;
-    const daysUntil = (payDay - tDow + 7) % 7;
-    return addDays(tomorrow, daysUntil);
-  }
-
-  if (freq === "biweekly") {
+  if (freq === "weekly" || freq === "biweekly") {
+    const payDow: number | null | undefined = worker.payroll_dow;
+    if (payDow == null) {
+      const base = worker.last_run?.period_end
+        ? isoToDate(worker.last_run.period_end)
+        : isoToDate(worker.start_date);
+      return addDays(base, freq === "weekly" ? 7 : 14);
+    }
+    if (freq === "weekly") {
+      const tomorrow = addDays(today, 1);
+      const tDow = (tomorrow.getDay() + 6) % 7;
+      const daysUntil = (payDow - tDow + 7) % 7;
+      return addDays(tomorrow, daysUntil);
+    }
+    // biweekly
     const start = isoToDate(worker.start_date);
     const sDow = (start.getDay() + 6) % 7;
-    const offset = ((payDay - sDow + 7) % 7) || 14;
+    const offset = ((payDow - sDow + 7) % 7) || 14;
     const firstPay = addDays(start, offset);
     const elapsed = diffDays(firstPay, today);
     if (elapsed < 0) return firstPay;
@@ -200,12 +198,19 @@ function nextWorkerPayDate(worker: any, today: Date = new Date()): Date {
   }
 
   if (freq === "monthly") {
-    const thisMonth = new Date(today.getFullYear(), today.getMonth(), payDay);
+    const payDom: number | null | undefined = worker.payroll_dom;
+    if (payDom == null) {
+      const base = worker.last_run?.period_end
+        ? isoToDate(worker.last_run.period_end)
+        : isoToDate(worker.start_date);
+      return addDays(base, 30);
+    }
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), payDom);
     if (thisMonth > today) return thisMonth;
-    return new Date(today.getFullYear(), today.getMonth() + 1, payDay);
+    return new Date(today.getFullYear(), today.getMonth() + 1, payDom);
   }
 
-  // Semi-monthly
+  // Semi-monthly: always 15th and last day of month
   const yr = today.getFullYear();
   const mo = today.getMonth();
   const fifteenth = new Date(yr, mo, 15);

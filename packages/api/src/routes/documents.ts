@@ -21,8 +21,10 @@ const DOCS_DIR = process.env.DOCS_DIR ?? "./data/documents";
 const plugin: FastifyPluginAsync = async (fastify) => {
 
   // ─── POST /api/documents/payslip/:payrollRunId ──────────────────────────────
+  // Stricter limit: generates a full PDF on every call (CPU/memory heavy).
   fastify.post<{ Params: { payrollRunId: string } }>(
     "/payslip/:payrollRunId",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (req, reply) => {
       if (!requireEmployer(req, reply)) return;
 
@@ -40,8 +42,12 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       // (LFT vacation entitlement resets on hire anniversary, not Jan 1)
       const hireDate = new Date(worker.start_date + "T00:00:00");
       const today    = new Date();
-      const anniv    = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate());
-      if (anniv > today) anniv.setFullYear(today.getFullYear() - 1);
+      // Cap hire day to last day of month so Feb-29 doesn't roll to March 1
+      // in non-leap years (JS Date constructor silently overflows).
+      const annivYear  = today.getFullYear();
+      const lastDay    = new Date(annivYear, hireDate.getMonth() + 1, 0).getDate();
+      const anniv      = new Date(annivYear, hireDate.getMonth(), Math.min(hireDate.getDate(), lastDay));
+      if (anniv > today) anniv.setFullYear(annivYear - 1);
       const annivStart = anniv.toISOString().split("T")[0];
       const vacRows = await db.select({
         vacation_days: payrollRuns.vacation_days,
@@ -111,12 +117,14 @@ const plugin: FastifyPluginAsync = async (fastify) => {
         .where(eq(payslips.payroll_run_id, req.params.payrollRunId));
       if (!payslip) return reply.status(404).send({ error: "Payslip not found — POST first" });
 
-      // Ownership check via worker
+      // Ownership check via worker — must find the worker AND own it.
+      // A missing worker row (e.g. soft-deleted) must NOT skip the check.
       const [worker] = await db
         .select({ employer_id: workers.employer_id })
         .from(workers)
         .where(eq(workers.id, payslip.worker_id));
-      if (worker && !ownsResource(req, worker.employer_id, reply)) return;
+      if (!worker) return reply.status(404).send({ error: "Worker not found" });
+      if (!ownsResource(req, worker.employer_id, reply)) return;
 
       if (!existsSync(payslip.file_path)) {
         return reply.status(404).send({ error: "PDF missing from disk — regenerate via POST" });
@@ -128,11 +136,13 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   );
 
   // ─── POST /api/documents/contract/:workerId ─────────────────────────────────
+  // Stricter limit: generates a full PDF on every call.
   fastify.post<{
     Params: { workerId: string };
     Body: { contract_date?: string };
   }>(
     "/contract/:workerId",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (req, reply) => {
       if (!requireEmployer(req, reply)) return;
 
@@ -217,8 +227,10 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   // ─── GET /api/documents/sample-contract ────────────────────────────────────
   // Public endpoint — no auth required. Generates a sample contract PDF using
   // placeholder worker data so prospective users can see what the output looks like.
+  // Public endpoint — limit abuse; PDF generation is expensive.
   fastify.get(
     "/sample-contract",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (_req, reply) => {
       const sampleContractDate = new Date().toISOString().slice(0, 10);
 

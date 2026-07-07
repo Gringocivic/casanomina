@@ -31,7 +31,8 @@ const WorkerSchema = z.object({
   is_imss_registered: z.boolean().default(false),
   imss_nss:           z.string().optional().nullable(),
   live_in:            z.boolean().default(false),
-  payroll_day:        z.number().int().min(0).max(31).optional().nullable(),
+  payroll_dow:        z.number().int().min(0).max(6).optional().nullable(),   // weekly/biweekly
+  payroll_dom:        z.number().int().min(1).max(28).optional().nullable(),  // monthly
 });
 
 const plugin: FastifyPluginAsync = async (fastify) => {
@@ -111,8 +112,12 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     for (const w of allWorkers) {
       const hireDate = new Date(w.start_date + "T00:00:00");
       const today    = new Date();
-      const anniv    = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate());
-      if (anniv > today) anniv.setFullYear(today.getFullYear() - 1);
+      // Cap hire day to last day of month so Feb-29 doesn't roll to March 1
+      // in non-leap years (JS Date constructor silently overflows).
+      const annivYear  = today.getFullYear();
+      const lastDay    = new Date(annivYear, hireDate.getMonth() + 1, 0).getDate();
+      const anniv      = new Date(annivYear, hireDate.getMonth(), Math.min(hireDate.getDate(), lastDay));
+      if (anniv > today) anniv.setFullYear(annivYear - 1);
       const annivStart = anniv.toISOString().split("T")[0];
       const taken = allVacRuns
         .filter((r) => r.worker_id === w.id && r.period_start >= annivStart)

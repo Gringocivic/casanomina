@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { RATES_2026, calculateVacationDays, calculateYearsOfService } from "@casanomina/calculator";
+import { ROLES, isCustomRole } from "../lib/roles";
 
 const MIN_SALARY = RATES_2026.minimum_daily_wage_general;
 
@@ -75,6 +76,7 @@ export function WorkerProfile() {
   const [inviteResult, setInviteResult] = useState<{ claim_url: string; invite_contact: string; invite_status: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [imssGuideOpen, setImssGuideOpen] = useState(false);
+  const [roleIsCustom, setRoleIsCustom] = useState(false);
 
   const [vacationTaken, setVacationTaken] = useState(0);
 
@@ -101,6 +103,8 @@ export function WorkerProfile() {
           daily_salary: String(w.daily_salary),
           days_per_week: String(w.days_per_week ?? 6),
         } as any);
+        // If the stored role is not in the predefined list, show custom input
+        if (isCustomRole(w.role)) setRoleIsCustom(true);
       });
       // Load vacation_days_taken from the cards endpoint
       api.workers.cards().then((cards: any[]) => {
@@ -236,15 +240,33 @@ export function WorkerProfile() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Role" : "Puesto"}</label>
-                <select className={fieldClass} value={form.role} onChange={(e) => set("role", e.target.value)}>
+                <select
+                  className={fieldClass}
+                  value={roleIsCustom ? "__other__" : form.role}
+                  onChange={(e) => {
+                    if (e.target.value === "__other__") {
+                      setRoleIsCustom(true);
+                      set("role", "");
+                    } else {
+                      setRoleIsCustom(false);
+                      set("role", e.target.value);
+                    }
+                  }}
+                >
                   <option value="">{lang === "en" ? "Select role" : "Seleccionar"}</option>
-                  <option value="housekeeper">{lang === "en" ? "Housekeeper" : "Ama de llaves"}</option>
-                  <option value="nanny">{lang === "en" ? "Nanny / Caregiver" : "Ninera / Cuidadora"}</option>
-                  <option value="cook">{lang === "en" ? "Cook" : "Cocinera"}</option>
-                  <option value="gardener">{lang === "en" ? "Gardener" : "Jardinero"}</option>
-                  <option value="driver">{lang === "en" ? "Driver" : "Chofer"}</option>
-                  <option value="caregiver">{lang === "en" ? "Elder Caregiver" : "Cuidadora de adultos"}</option>
+                  {ROLES.map((r) => <option key={r.value} value={r.value}>{r[lang]}</option>)}
+                  <option value="__other__">{lang === "en" ? "Other (custom)…" : "Otro (personalizado)…"}</option>
                 </select>
+                {roleIsCustom && (
+                  <input
+                    type="text"
+                    className={fieldClass + " mt-2"}
+                    placeholder={lang === "en" ? "Enter role title…" : "Escribe el puesto…"}
+                    value={form.role}
+                    onChange={(e) => set("role", e.target.value)}
+                    autoFocus
+                  />
+                )}
               </div>
               <div>
                 <label className={labelClass}>{lang === "en" ? "Start Date *" : "Fecha de Inicio *"}</label>
@@ -577,7 +599,7 @@ export function WorkerProfile() {
         {!isNew && (form as any).start_date && (() => {
           const today = new Date().toISOString().split("T")[0];
           const years = calculateYearsOfService((form as any).start_date, today);
-          const earned = Math.round(calculateVacationDays(Math.max(1, Math.floor(years)), RATES_2026) * ((form as any).days_per_week ?? 6) / 6);
+          const earned = Math.round(calculateVacationDays(years, RATES_2026) * ((form as any).days_per_week ?? 6) / 6);
           const remaining = Math.max(0, earned - vacationTaken);
           return earned > 0 ? (
             <Card>

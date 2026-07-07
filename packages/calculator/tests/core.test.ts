@@ -11,6 +11,7 @@ import {
   calculateSBC,
   calculateIMSSContributions,
   calculateINFONAVIT,
+  calculateISR,
   calculateVacationDays,
   calculatePrimaVacacional,
   calculateAguinaldo,
@@ -184,5 +185,61 @@ describe("roundCurrency", () => {
     expect(roundCurrency(123.456)).toBe(123.46);
     expect(roundCurrency(123.454)).toBe(123.45);
     expect(roundCurrency(100)).toBe(100);
+  });
+});
+
+describe("calculateISR", () => {
+  it("returns all-zero when config has no ISR tables", () => {
+    // Old configs (pre-2025) have no isr_monthly_tariff / isr_employment_subsidy_monthly.
+    const configNoISR = {
+      ...RATES_2026,
+      isr_monthly_tariff: undefined,
+      isr_employment_subsidy_monthly: undefined,
+    };
+    const result = calculateISR(500, 6, configNoISR);
+    expect(result.period_isr_withholding).toBe(0);
+    expect(result.monthly_isr_net).toBe(0);
+    expect(result.monthly_employment_subsidy).toBe(0);
+  });
+
+  it("applies the 2026 flat subsidy (535.65) to a min-wage worker", () => {
+    // 315.04 x 30 = 9451.20 -- within the [0.01, 11492.66] subsidy bracket.
+    // Tariff bracket [6332.06, 11128.01]: gross = 371.83 + (9451.20 - 6332.06) x 0.1088 = 711.19
+    // Net = 711.19 - 535.65 = 175.54  ->  6-day withholding = 35.11
+    const result = calculateISR(RATES_2026.minimum_daily_wage_general, 6, RATES_2026);
+    expect(result.monthly_income_equivalent).toBeCloseTo(
+      RATES_2026.minimum_daily_wage_general * 30, 1
+    );
+    expect(result.monthly_employment_subsidy).toBe(535.65);
+    expect(result.monthly_isr_gross).toBeCloseTo(711.19, 1);
+    expect(result.monthly_isr_net).toBeCloseTo(175.54, 1);
+    expect(result.period_isr_withholding).toBeCloseTo(35.11, 1);
+  });
+
+  it("applies full subsidy when monthly income is just below the 11492.66 ceiling", () => {
+    // 383.08 x 30 = 11492.40 <= 11492.66 -> full subsidy
+    const result = calculateISR(383.08, 6, RATES_2026);
+    expect(result.monthly_income_equivalent).toBeCloseTo(11492.40, 1);
+    expect(result.monthly_employment_subsidy).toBe(535.65);
+  });
+
+  it("drops subsidy to zero when monthly income crosses the 11492.66 ceiling", () => {
+    // 383.09 x 30 = 11492.70 > 11492.66 -> no subsidy; net equals gross
+    const result = calculateISR(383.09, 6, RATES_2026);
+    expect(result.monthly_income_equivalent).toBeCloseTo(11492.70, 1);
+    expect(result.monthly_employment_subsidy).toBe(0);
+    expect(result.monthly_isr_net).toBe(result.monthly_isr_gross);
+    expect(result.period_isr_withholding).toBeGreaterThan(0);
+  });
+
+  it("returns zero period_isr_withholding when daysWorked is 0", () => {
+    const result = calculateISR(500, 0, RATES_2026);
+    expect(result.period_isr_withholding).toBe(0);
+  });
+
+  it("period_isr_withholding increases with more days worked", () => {
+    const sixDays      = calculateISR(500, 6, RATES_2026);
+    const thirteenDays = calculateISR(500, 13, RATES_2026);
+    expect(thirteenDays.period_isr_withholding).toBeGreaterThan(sixDays.period_isr_withholding);
   });
 });

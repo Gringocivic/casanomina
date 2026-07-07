@@ -29,7 +29,10 @@ const PeriodSchema = z.object({
 const plugin: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/payroll/preview — pure calculation, no DB write
-  fastify.post("/preview", async (req, reply) => {
+  // Stricter rate limit: runs full ISR/IMSS/INFONAVIT calculation on every call.
+  fastify.post("/preview", {
+    config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+  }, async (req, reply) => {
     if (!requireEmployer(req, reply)) return;
     const body = PeriodSchema.parse(req.body);
 
