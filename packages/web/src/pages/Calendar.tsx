@@ -66,26 +66,25 @@ const HOLIDAYS: Record<string, string> = Object.fromEntries(
 
 function generatePaydates(worker: any, start: Date, end: Date): string[] {
   const freq: string = worker.pay_frequency ?? "weekly";
-  const base = worker.last_run?.period_end
-    ? isoToDate(worker.last_run.period_end)
-    : isoToDate(worker.start_date);
   const dates: string[] = [];
 
   if (freq === "weekly" || freq === "biweekly") {
     const step = freq === "weekly" ? 7 : 14;
-    // walk forward from base
-    let d = new Date(base);
+    // payroll_day: 0=Mon … 6=Sun (JS getDay: 0=Sun,1=Mon…6=Sat)
+    const targetDow = worker.payroll_day != null
+      ? (worker.payroll_day + 1) % 7   // convert Mon-based → JS Sun-based
+      : 5;                              // default Friday (JS 5)
+    // Find the first occurrence of targetDow on/after rangeStart
+    const anchor = new Date(start);
+    const anchorDow = anchor.getDay();
+    const offset = (targetDow - anchorDow + 7) % 7;
+    anchor.setDate(anchor.getDate() + offset);
+    let d = new Date(anchor);
     while (d <= end) {
-      if (d >= start) dates.push(toIso(d));
+      dates.push(toIso(d));
       d = addDays(d, step);
     }
-    // walk backward from base in case base > start
-    d = addDays(base, -step);
-    while (d >= start) {
-      if (d <= end) dates.push(toIso(d));
-      d = addDays(d, -step);
-    }
-    return [...new Set(dates)].sort();
+    return dates;
   }
 
   if (freq === "semi-monthly") {
