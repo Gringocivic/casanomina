@@ -92,8 +92,8 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       .where(
         and(
           inArray(payrollRuns.worker_id, ids),
-          gte(payrollRuns.period_end, monthStart),
-          lte(payrollRuns.period_end, monthEnd),
+          gte(payrollRuns.period_start, monthStart),
+          lte(payrollRuns.period_start, monthEnd),
         )
       )
       .groupBy(payrollRuns.worker_id);
@@ -300,4 +300,4 @@ const plugin: FastifyPluginAsync = async (fastify) => {
   );
 };
 
-export default plugin;
+export default plug

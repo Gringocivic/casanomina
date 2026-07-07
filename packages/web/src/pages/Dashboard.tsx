@@ -737,8 +737,8 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
       {ob.type === "isr" && (
         <p className="text-xs text-gray-400 italic mt-1">
           {lang === "es"
-            ? "El monto retenido puede ser menor al estimado si el último período semanal cruza hacia el mes siguiente — ese ISR se contabiliza en el mes de agosto."
-            : "Withheld may be less than the estimate if the last weekly pay period straddles into the next month — that ISR is counted in August."}
+            ? "Se cuentan los períodos cuyo inicio cae en este mes. Períodos que comenzaron el mes anterior no se incluyen aquí."
+            : "Counts pay periods whose start date falls in this month. Periods that started last month are not included here."}
         </p>
       )}
     </div>
@@ -1267,3 +1267,4 @@ export function Dashboard() {
     </div>
   );
 }
+                                                           
