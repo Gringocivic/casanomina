@@ -577,7 +577,7 @@ export function WorkerProfile() {
         {!isNew && (form as any).start_date && (() => {
           const today = new Date().toISOString().split("T")[0];
           const years = calculateYearsOfService((form as any).start_date, today);
-          const earned = Math.round(calculateVacationDays(Math.ceil(years), RATES_2026) * ((form as any).days_per_week ?? 6) / 6);
+          const earned = Math.round(calculateVacationDays(Math.max(1, Math.floor(years)), RATES_2026) * ((form as any).days_per_week ?? 6) / 6);
           const remaining = Math.max(0, earned - vacationTaken);
           return earned > 0 ? (
             <Card>

@@ -214,7 +214,7 @@ function PayslipDoc({ run, worker, config }: {
   const dailySalary    = parseFloat(worker.daily_salary);
   const yearsFloat     = yearsOfService(worker.start_date, run.period_end);
   // Use ceil so workers see their upcoming entitlement even before the anniversary
-  const accrualYear    = Math.max(1, Math.ceil(yearsFloat));
+  const accrualYear    = Math.max(1, Math.floor(yearsFloat));
   const vacDaysRaw     = vacationDaysEarned(accrualYear);
   // Prorate for part-time workers (same as UI)
   const vacDays        = Math.round(vacDaysRaw * (worker.days_per_week ?? 6) / 6);

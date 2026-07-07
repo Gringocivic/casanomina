@@ -340,10 +340,21 @@ export function Workers() {
                   </StatCell>
 
                   <StatCell label={T.vacDays[lang]}>
-                    {yearsService > 0
-                      ? `${vacDays} ${lang === "en" ? "days" : "días"}`
-                      : <span className="text-gray-400 font-normal">{lang === "en" ? "< 1 yr" : "< 1 año"}</span>
-                    }
+                    {yearsService > 0 ? (() => {
+                      const taken     = w.vacation_days_taken ?? 0;
+                      const remaining = Math.max(0, vacDays - taken);
+                      return (
+                        <span className="text-xs leading-tight">
+                          <span className="font-semibold text-purple-700">{vacDays}</span>
+                          <span className="text-gray-400"> {lang === "en" ? "earned" : "ganados"}</span>
+                          {taken > 0 && (
+                            <><span className="text-gray-300"> · </span>
+                            <span className="font-semibold text-gray-600">{remaining}</span>
+                            <span className="text-gray-400"> {lang === "en" ? "left" : "disp."}</span></>
+                          )}
+                        </span>
+                      );
+                    })() : <span className="text-gray-400 font-normal">{lang === "en" ? "< 1 yr" : "< 1 año"}</span>}
                   </StatCell>
 
                   <StatCell label={T.aguinaldo[lang]}>
