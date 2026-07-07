@@ -91,7 +91,7 @@ const plugin: FastifyPluginAsync = async (fastify) => {
       .where(
         and(
           inArray(payrollRuns.worker_id, ids),
-          gte(payrollRuns.period_start, monthStart),
+          gte(payrollRuns.period_end, monthStart),
           lte(payrollRuns.period_end, monthEnd),
         )
       )
