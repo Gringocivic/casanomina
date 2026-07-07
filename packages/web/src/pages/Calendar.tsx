@@ -180,13 +180,16 @@ function buildICS(events: Map<string, CalEvent[]>): string {
     "BEGIN:VCALENDAR", "VERSION:2.0",
     "PRODID:-//CasaNomina//Calendar//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
   ];
+  let uid = 0;
   for (const dayEvents of events.values()) {
     for (const e of dayEvents) {
       const ds = toIcsDate(e.date);
       const next = toIcsDate(toIso(addDays(isoToDate(e.date), 1)));
+      const summary = `${e.title}${e.subtitle ? ` – ${e.subtitle}` : ""}`;
       lines.push("BEGIN:VEVENT",
+        `UID:casanomina-${e.date}-${e.type}-${uid++}@casanomina`,
         `DTSTART;VALUE=DATE:${ds}`, `DTEND;VALUE=DATE:${next}`,
-        `SUMMARY:${e.title}${e.subtitle ? ` – ${e.subtitle}` : ""}`,
+        `SUMMARY:${summary}`,
         "END:VEVENT");
     }
   }
@@ -333,10 +336,11 @@ export function Calendar() {
             <Download size={14} />
             {lang === "en" ? "Download .ics" : "Descargar .ics"}
           </button>
-          <a href="https://calendar.google.com/calendar/r" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700">
+          <a href="https://support.google.com/calendar/answer/37118" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700"
+            title={lang === "en" ? "How to import .ics into Google Calendar" : "Cómo importar .ics en Google Calendar"}>
             <ExternalLink size={14} />
-            Google Calendar
+            {lang === "en" ? "Import to Google" : "Importar a Google"}
           </a>
         </div>
       </div>
