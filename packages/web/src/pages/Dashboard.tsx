@@ -698,8 +698,6 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                 </tr>
               ))}
             </tbody>
-          </table>
-          <table className="w-full text-xs border-collapse mt-0.5">
             <tfoot>
               <tr className="border-t-2 border-gray-200 font-semibold text-gray-700">
                 <td className="py-1.5 pr-3">{lang === "es" ? "Total" : "Total"}</td>
