@@ -9,6 +9,7 @@
  * This is idempotent — running it twice won't create duplicates.
  */
 import { db } from "./client.js";
+import { sql } from "drizzle-orm";
 import { rateConfigs, cmsContent } from "./schema.js";
 import rates2025 from "../../../calculator/src/config/rates.2025.json" assert { type: "json" };
 import rates2026 from "../../../calculator/src/config/rates.2026.json" assert { type: "json" };
@@ -35,7 +36,10 @@ async function seed() {
         is_active:      true,
       },
     ])
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: rateConfigs.config_key,
+      set: { config_data: sql`excluded.config_data`, is_active: sql`excluded.is_active` },
+    });
 
   // ── Laws & Rights bilingual CMS content ──────────────────────────────────
   console.log("🌱 Seeding Laws & Rights content...");
