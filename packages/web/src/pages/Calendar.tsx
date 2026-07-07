@@ -66,6 +66,9 @@ const HOLIDAYS: Record<string, string> = Object.fromEntries(
 
 function generatePaydates(worker: any, start: Date, end: Date): string[] {
   const freq: string = worker.pay_frequency ?? "weekly";
+  // Never generate dates before the worker's own start date
+  const workerStart = worker.start_date ? isoToDate(worker.start_date) : start;
+  const effectiveStart = workerStart > start ? workerStart : start;
   const dates: string[] = [];
 
   if (freq === "weekly" || freq === "biweekly") {
@@ -74,8 +77,8 @@ function generatePaydates(worker: any, start: Date, end: Date): string[] {
     const targetDow = worker.payroll_day != null
       ? (worker.payroll_day + 1) % 7   // convert Mon-based → JS Sun-based
       : 5;                              // default Friday (JS 5)
-    // Find the first occurrence of targetDow on/after rangeStart
-    const anchor = new Date(start);
+    // Find the first occurrence of targetDow on/after effectiveStart
+    const anchor = new Date(effectiveStart);
     const anchorDow = anchor.getDay();
     const offset = (targetDow - anchorDow + 7) % 7;
     anchor.setDate(anchor.getDate() + offset);
@@ -88,12 +91,12 @@ function generatePaydates(worker: any, start: Date, end: Date): string[] {
   }
 
   if (freq === "semi-monthly") {
-    let y = start.getFullYear(), m = start.getMonth();
+    let y = effectiveStart.getFullYear(), m = effectiveStart.getMonth();
     while (new Date(y, m, 1) <= end) {
       const d15 = new Date(y, m, 15);
       const dLast = new Date(y, m + 1, 0);
-      if (d15 >= start && d15 <= end) dates.push(toIso(d15));
-      if (dLast >= start && dLast <= end) dates.push(toIso(dLast));
+      if (d15 >= effectiveStart && d15 <= end) dates.push(toIso(d15));
+      if (dLast >= effectiveStart && dLast <= end) dates.push(toIso(dLast));
       if (++m > 11) { m = 0; y++; }
     }
     return dates;
@@ -101,10 +104,10 @@ function generatePaydates(worker: any, start: Date, end: Date): string[] {
 
   if (freq === "monthly") {
     const day = worker.payroll_day ?? 30;
-    let y = start.getFullYear(), m = start.getMonth();
+    let y = effectiveStart.getFullYear(), m = effectiveStart.getMonth();
     while (new Date(y, m, 1) <= end) {
       const d = new Date(y, m, Math.min(day, new Date(y, m + 1, 0).getDate()));
-      if (d >= start && d <= end) dates.push(toIso(d));
+      if (d >= effectiveStart && d <= end) dates.push(toIso(d));
       if (++m > 11) { m = 0; y++; }
     }
     return dates;
@@ -302,7 +305,10 @@ export function Calendar() {
   }
 
   function downloadICS() {
-    const content = buildICS(events);
+    const today = new Date();
+    const yearOut = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+    const exportEvents = buildEvents(workers ?? [], today, yearOut);
+    const content = buildICS(exportEvents);
     const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
