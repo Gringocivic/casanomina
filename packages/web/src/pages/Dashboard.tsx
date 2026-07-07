@@ -241,14 +241,16 @@ function bimestralTotalPayable(worker: any): number {
   return (imss.total_employer + imss.total_worker + infonavit) * daysPerBimester;
 }
 
-/** ISR withheld expected per month — always salary-based (30-day projection).
- *  Consistent regardless of how many months have elapsed or how many runs exist.
+/** ISR withheld expected per month — salary-based, scaled to actual scheduled days.
+ *  Uses days_per_week × (52/12) so part-time workers get a correct projection.
  *  The "Withheld" column shows what was actually deducted; this shows what to expect.
  */
 function monthlyIsrEstimate(worker: any): number {
   const dailySalary = parseFloat(worker.daily_salary ?? "0");
   if (dailySalary <= 0) return 0;
-  return calculateISR(dailySalary, 30, RATES_2026).period_isr_withholding;
+  const daysPerWeek = worker.days_per_week ?? 6;
+  const daysPerMonth = daysPerWeek * (52 / 12);
+  return calculateISR(dailySalary, daysPerMonth, RATES_2026).period_isr_withholding;
 }
 
 /** Total monthly employer outlay estimate for one worker. */
