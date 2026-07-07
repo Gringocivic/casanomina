@@ -211,9 +211,14 @@ function PayslipDoc({ run, worker, config }: {
 
   // Accruals (informational estimates)
   const dailySalary    = parseFloat(worker.daily_salary);
-  const completedYears = Math.floor(yearsOfService(worker.start_date, run.period_end));
-  const vacDays        = vacationDaysEarned(completedYears);
+  const yearsFloat     = yearsOfService(worker.start_date, run.period_end);
+  // Use ceil so workers see their upcoming entitlement even before the anniversary
+  const accrualYear    = Math.max(1, Math.ceil(yearsFloat));
+  const vacDaysRaw     = vacationDaysEarned(accrualYear);
+  // Prorate for part-time workers (same as UI)
+  const vacDays        = Math.round(vacDaysRaw * (worker.days_per_week ?? 6) / 6);
   const primaVac       = vacDays * dailySalary * 0.25;
+  const completedYears = Math.floor(yearsFloat);
   const daysThisYear   = daysInYear(run.period_end);
   const aguinaldoAccum = (daysThisYear / 365) * 15 * dailySalary;
 
@@ -376,7 +381,7 @@ function PayslipDoc({ run, worker, config }: {
       el(View, { style: S.accrualBox },
         el(Text, { style: S.accrualTitle }, "Prestaciones Acumuladas al Corte (estimadas) / Accrued Benefits (estimates)"),
         AccrualRow(`Aguinaldo acumulado (${daysThisYear} días del año × 15 días/año)`, mxn(aguinaldoAccum)),
-        AccrualRow(`Días de vacaciones ganados (${completedYears} año${completedYears !== 1 ? "s" : ""} servicio)`, `${vacDays} días`),
+        AccrualRow(`Vacaciones (año ${accrualYear} servicio, ${worker.days_per_week ?? 6} días/sem)`, `${vacDays} días`),
         AccrualRow("Prima vacacional estimada (25% sobre vacaciones)", mxn(primaVac)),
         el(View, { style: S.accrualRow },
           el(Text, { style: { ...S.accrualKey, fontSize: 7, fontStyle: "italic" } },
