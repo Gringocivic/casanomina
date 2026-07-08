@@ -178,9 +178,10 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     const [updated] = await db
       .update(payrollRuns)
       .set({ status: "approved", approved_at: new Date(), approved_by: employerId })
-      .where(eq(payrollRuns.id, req.params.id))
+      .where(and(eq(payrollRuns.id, req.params.id), eq(payrollRuns.status, "draft")))
       .returning();
 
+    if (!updated) return reply.status(409).send({ error: "Run is not in draft status" });
     return updated;
   });
 
@@ -200,9 +201,10 @@ const plugin: FastifyPluginAsync = async (fastify) => {
     const [updated] = await db
       .update(payrollRuns)
       .set({ status: "paid", paid_at: new Date() })
-      .where(eq(payrollRuns.id, req.params.id))
+      .where(and(eq(payrollRuns.id, req.params.id), eq(payrollRuns.status, "approved")))
       .returning();
 
+    if (!updated) return reply.status(409).send({ error: "Run is not in approved status" });
     return updated;
   });
 };
