@@ -9,7 +9,7 @@
   "minimum_daily_wage_northern_border": 419.88,
   "_comment_uma": "UMA = Unidad de Medida y Actualizacion. 2025 value (113.14) takes effect Feb 1, 2025.",
   "uma_daily_value": 113.14,
-  "uma_daily_value_jan_2025": 108.57,
+  "uma_daily_value_jan_override": 108.57,
   "uma_effective_date": "2025-02-01",
   "_comment_sbc": "SBC = Salario Base de Cotizacion. Integration factor assumes first-year worker minimums.",
   "sbc_integration_factor": 1.0493,

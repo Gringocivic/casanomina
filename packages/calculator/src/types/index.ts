@@ -94,8 +94,7 @@ export interface RatesConfig {
   minimum_daily_wage_northern_border: number;
 
   uma_daily_value: number;
-  uma_daily_value_jan_2026?: number;
-  uma_daily_value_jan_2025?: number;
+  uma_daily_value_jan_override?: number;  // Previous year's UMA, used for January before Feb-1 transition
   uma_effective_date: string;
 
   sbc_integration_factor: number;

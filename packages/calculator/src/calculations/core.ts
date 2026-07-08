@@ -48,13 +48,27 @@ export function calculateSBC(
 // ---------------------------------------------------------------------------
 
 /**
+ * Returns the correct UMA daily value for a given period start date.
+ * INEGI updates the UMA every February 1st; January payrolls use the prior year's value.
+ * If uma_daily_value_jan_override is set in the config and the period falls in January,
+ * the override is used instead of uma_daily_value.
+ */
+export function resolveUma(config: RatesConfig, periodStartDate?: string): number {
+  if (config.uma_daily_value_jan_override && periodStartDate) {
+    const month = parseInt(periodStartDate.split("-")[1], 10);
+    if (month === 1) return config.uma_daily_value_jan_override;
+  }
+  return config.uma_daily_value;
+}
+
+/**
  * Calculates the IMSS contributions owed by both employer and worker,
  * broken down by insurance branch (ramo).
  *
  * LEGAL BASIS: LSS Arts. 106-107 (E&M), 147 (IV), 168 (RCV), 211 (GPS), 71-74 (RT).
  */
-export function calculateIMSSContributions(sbc: number, config: RatesConfig): IMSSBreakdown {
-  const uma = config.uma_daily_value;
+export function calculateIMSSContributions(sbc: number, config: RatesConfig, periodStartDate?: string): IMSSBreakdown {
+  const uma = resolveUma(config, periodStartDate);
   const r = config.imss_rates;
 
   // Enfermedad y Maternidad

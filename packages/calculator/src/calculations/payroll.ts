@@ -63,7 +63,7 @@ export function calculatePayroll(
   const sbc = calculateSBC(worker.daily_salary, config, yearsOfService);
 
   // Step 3: IMSS contributions, scaled to the period by days_worked.
-  const dailyImss = calculateIMSSContributions(sbc, config);
+  const dailyImss = calculateIMSSContributions(sbc, config, period.start_date);
   const periodFactor = period.days_worked;
 
   const imssForPeriod = {
