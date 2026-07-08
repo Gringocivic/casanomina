@@ -105,11 +105,12 @@ export function WorkerOnboarding() {
 
   // Tracks whether the user has selected "Other (custom)" for role
   const [roleIsCustom, setRoleIsCustom] = useState(false);
-  // Domestic-worker screening for custom roles. null = not yet answered.
-  const [screeningQ1, setScreeningQ1] = useState<boolean | null>(null); // works in the home?
-  const [screeningQ2, setScreeningQ2] = useState<boolean | null>(null); // tasks for the household?
+  const [screeningQ1, setScreeningQ1] = useState<boolean | null>(null);
+  const [screeningQ2, setScreeningQ2] = useState<boolean | null>(null);
   const screeningFailed = screeningQ1 === false || screeningQ2 === false;
   const screeningPassed = screeningQ1 === true && screeningQ2 === true;
+  const q1Yes = screeningQ1 === true; const q1No = screeningQ1 === false;
+  const q2Yes = screeningQ2 === true; const q2No = screeningQ2 === false;
 
   // Step 2 — Terms
   const [terms, setTerms] = useState({
@@ -309,7 +310,7 @@ export function WorkerOnboarding() {
                     <p className="font-medium text-amber-900">
                       {lang === "en"
                         ? "Two quick questions to confirm this role qualifies as domestic work under Mexican law (LFT Art. 331):"
-                        : "Dos preguntas para confirmar que este puesto califica como trabajo doméstico bajo la ley mexicana (LFT Art. 331):"}
+                        : "Dos preguntas para confirmar que este puesto califica como trabajo doméstico (LFT Art. 331):"}
                     </p>
                     <div>
                       <p className="text-amber-800 mb-1">
@@ -317,11 +318,11 @@ export function WorkerOnboarding() {
                       </p>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setScreeningQ1(true)}
-                          className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ1 === true ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                          className={"px-3 py-1 rounded border text-xs font-medium " + (q1Yes ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-300")}>
                           {lang === "en" ? "Yes" : "Sí"}
                         </button>
                         <button type="button" onClick={() => setScreeningQ1(false)}
-                          className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ1 === false ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                          className={"px-3 py-1 rounded border text-xs font-medium " + (q1No  ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-300")}>
                           No
                         </button>
                       </div>
@@ -329,15 +330,15 @@ export function WorkerOnboarding() {
                     {screeningQ1 === true && (
                       <div>
                         <p className="text-amber-800 mb-1">
-                          {lang === "en" ? "2. Are their tasks for running or maintaining your household?" : "2. ¿Sus tareas son para administrar o mantener tu hogar?"}
+                          {lang === "en" ? "2. Are their tasks for running or maintaining your household?" : "2. ¿Sus tareas son para mantener tu hogar?"}
                         </p>
                         <div className="flex gap-2">
                           <button type="button" onClick={() => setScreeningQ2(true)}
-                            className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ2 === true ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                            className={"px-3 py-1 rounded border text-xs font-medium " + (q2Yes ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-300")}>
                             {lang === "en" ? "Yes" : "Sí"}
                           </button>
                           <button type="button" onClick={() => setScreeningQ2(false)}
-                            className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ2 === false ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                            className={"px-3 py-1 rounded border text-xs font-medium " + (q2No  ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-300")}>
                             No
                           </button>
                         </div>
@@ -352,8 +353,8 @@ export function WorkerOnboarding() {
                     </p>
                     <p>
                       {lang === "en"
-                        ? "CasaNomina is designed for household employers with domestic workers (LFT Art. 331). Professional services rendered at home — such as tutoring, personal training, or accounting — are not covered. Please consult an employment attorney if you have questions."
-                        : "CasaNomina está diseñada para empleadores del hogar con trabajadores domésticos (LFT Art. 331). Los servicios profesionales prestados en el hogar — como tutorías, entrenamiento personal o contabilidad — no están cubiertos. Consulta a un abogado laboral si tienes dudas."}
+                        ? "CasaNomina is designed for household employers with domestic workers (LFT Art. 331). Professional services rendered at home — such as tutoring, personal training, or accounting — are not covered."
+                        : "CasaNomina está diseñada para empleadores del hogar con trabajadores domésticos (LFT Art. 331). Los servicios profesionales prestados en el hogar — como tutorías o entrenamiento personal — no están cubiertos."}
                     </p>
                   </div>
                 )}
