@@ -105,6 +105,11 @@ export function WorkerOnboarding() {
 
   // Tracks whether the user has selected "Other (custom)" for role
   const [roleIsCustom, setRoleIsCustom] = useState(false);
+  // Domestic-worker screening for custom roles. null = not yet answered.
+  const [screeningQ1, setScreeningQ1] = useState<boolean | null>(null); // works in the home?
+  const [screeningQ2, setScreeningQ2] = useState<boolean | null>(null); // tasks for the household?
+  const screeningFailed = screeningQ1 === false || screeningQ2 === false;
+  const screeningPassed = screeningQ1 === true && screeningQ2 === true;
 
   // Step 2 — Terms
   const [terms, setTerms] = useState({
@@ -285,9 +290,13 @@ export function WorkerOnboarding() {
                     if (e.target.value === "__other__") {
                       setRoleIsCustom(true);
                       setInfo({ ...info, role: "" });
+                      setScreeningQ1(null);
+                      setScreeningQ2(null);
                     } else {
                       setRoleIsCustom(false);
                       setInfo({ ...info, role: e.target.value });
+                      setScreeningQ1(null);
+                      setScreeningQ2(null);
                     }
                   }}
                 >
@@ -295,7 +304,60 @@ export function WorkerOnboarding() {
                   {ROLES.map((r) => <option key={r.value} value={r.value}>{r[lang]}</option>)}
                   <option value="__other__">{lang === "en" ? "Other (custom)…" : "Otro (personalizado)…"}</option>
                 </select>
-                {roleIsCustom && (
+                {roleIsCustom && !screeningFailed && !screeningPassed && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-3 text-sm">
+                    <p className="font-medium text-amber-900">
+                      {lang === "en"
+                        ? "Two quick questions to confirm this role qualifies as domestic work under Mexican law (LFT Art. 331):"
+                        : "Dos preguntas para confirmar que este puesto califica como trabajo doméstico bajo la ley mexicana (LFT Art. 331):"}
+                    </p>
+                    <div>
+                      <p className="text-amber-800 mb-1">
+                        {lang === "en" ? "1. Does this person work in your home?" : "1. ¿Esta persona trabaja en tu hogar?"}
+                      </p>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setScreeningQ1(true)}
+                          className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ1 === true ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                          {lang === "en" ? "Yes" : "Sí"}
+                        </button>
+                        <button type="button" onClick={() => setScreeningQ1(false)}
+                          className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ1 === false ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                          No
+                        </button>
+                      </div>
+                    </div>
+                    {screeningQ1 === true && (
+                      <div>
+                        <p className="text-amber-800 mb-1">
+                          {lang === "en" ? "2. Are their tasks for running or maintaining your household?" : "2. ¿Sus tareas son para administrar o mantener tu hogar?"}
+                        </p>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setScreeningQ2(true)}
+                            className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ2 === true ? "bg-green-600 text-white border-green-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                            {lang === "en" ? "Yes" : "Sí"}
+                          </button>
+                          <button type="button" onClick={() => setScreeningQ2(false)}
+                            className={\`px-3 py-1 rounded border text-xs font-medium \${screeningQ2 === false ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-700 border-gray-300"}\`}>
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {roleIsCustom && screeningFailed && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
+                    <p className="font-semibold mb-1">
+                      {lang === "en" ? "This role is not domestic work under Mexican law." : "Este puesto no califica como trabajo doméstico bajo la ley mexicana."}
+                    </p>
+                    <p>
+                      {lang === "en"
+                        ? "CasaNomina is designed for household employers with domestic workers (LFT Art. 331). Professional services rendered at home — such as tutoring, personal training, or accounting — are not covered. Please consult an employment attorney if you have questions."
+                        : "CasaNomina está diseñada para empleadores del hogar con trabajadores domésticos (LFT Art. 331). Los servicios profesionales prestados en el hogar — como tutorías, entrenamiento personal o contabilidad — no están cubiertos. Consulta a un abogado laboral si tienes dudas."}
+                    </p>
+                  </div>
+                )}
+                {roleIsCustom && screeningPassed && (
                   <input
                     type="text"
                     className={fieldClass + " mt-2"}
