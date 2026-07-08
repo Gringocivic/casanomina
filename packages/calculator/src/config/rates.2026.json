@@ -195,72 +195,72 @@
   "_comment_seniority_premium_cap": "Prima de antiguedad (LFT Art. 162) is capped at twice the general minimum daily wage.",
   "seniority_premium_cap_multiplier_of_min_wage": 2,
   "seniority_premium_days_per_year": 12,
-  "_comment_isr": "ISR = Impuesto Sobre la Renta (income tax). The employer withholds ISR from the worker's pay each period and remits it to SAT. Two tables: (1) monthly ISR tariff (Art. 96 LISR) and (2) Subsidio para el Empleo (Art. 113-B LISR, Anexo 8 RMF). Net ISR = max(0, tariff_result - subsidy). NOTE: Values below are 2025 SAT tables. Update to 2026 DOF values when published.",
+  "_comment_isr": "ISR = Impuesto Sobre la Renta (income tax). The employer withholds ISR from the worker's pay each period and remits it to SAT. Two tables: (1) monthly ISR tariff (Art. 96 LISR) and (2) Subsidio para el Empleo (Art. 113-B LISR, Anexo 8 RMF). Net ISR = max(0, tariff_result - subsidy). Values are the 2026 official SAT tables from Anexo 8 RMF 2026 (DOF 28-Dec-2025). Factor de actualizacion 1.1321 (INPC nov-2025 / INPC nov-2022 = 142.645 / 125.997).",
   "isr_monthly_tariff": [
     {
       "lower_limit": 0.01,
-      "upper_limit": 746.04,
+      "upper_limit": 844.59,
       "fixed_tax": 0.0,
       "rate": 0.0192
     },
     {
-      "lower_limit": 746.05,
-      "upper_limit": 6332.05,
-      "fixed_tax": 14.32,
+      "lower_limit": 844.6,
+      "upper_limit": 7168.51,
+      "fixed_tax": 16.22,
       "rate": 0.064
     },
     {
-      "lower_limit": 6332.06,
-      "upper_limit": 11128.01,
-      "fixed_tax": 371.83,
+      "lower_limit": 7168.52,
+      "upper_limit": 12598.02,
+      "fixed_tax": 420.95,
       "rate": 0.1088
     },
     {
-      "lower_limit": 11128.02,
-      "upper_limit": 12935.82,
-      "fixed_tax": 893.63,
+      "lower_limit": 12598.03,
+      "upper_limit": 14644.64,
+      "fixed_tax": 1011.68,
       "rate": 0.16
     },
     {
-      "lower_limit": 12935.83,
-      "upper_limit": 15487.71,
-      "fixed_tax": 1182.88,
+      "lower_limit": 14644.65,
+      "upper_limit": 17533.64,
+      "fixed_tax": 1339.14,
       "rate": 0.1792
     },
     {
-      "lower_limit": 15487.72,
-      "upper_limit": 31236.49,
-      "fixed_tax": 1640.18,
+      "lower_limit": 17533.65,
+      "upper_limit": 35362.83,
+      "fixed_tax": 1856.84,
       "rate": 0.2136
     },
     {
-      "lower_limit": 31236.5,
-      "upper_limit": 49233.0,
-      "fixed_tax": 4007.91,
+      "lower_limit": 35362.84,
+      "upper_limit": 55736.68,
+      "fixed_tax": 5665.16,
       "rate": 0.2352
     },
     {
-      "lower_limit": 49233.01,
-      "upper_limit": 93993.9,
-      "fixed_tax": 8239.26,
+      "lower_limit": 55736.69,
+      "upper_limit": 106410.5,
+      "fixed_tax": 10457.09,
       "rate": 0.3
     },
     {
-      "lower_limit": 93993.91,
-      "upper_limit": 125325.2,
-      "fixed_tax": 21667.26,
+      "lower_limit": 106410.51,
+      "upper_limit": 141880.66,
+      "fixed_tax": 25659.23,
       "rate": 0.32
     },
     {
-      "lower_limit": 125325.21,
-      "upper_limit": 375975.61,
-      "fixed_tax": 31738.14,
+      "lower_limit": 141880.67,
+      "upper_limit": 425641.99,
+      "fixed_tax": 37009.69,
       "rate": 0.34
     },
     {
-      "lower_limit": 375975.62,
+      "lower_limit": 425642.0,
       "upper_limit": null,
-      "fixed_tax": 117172.48,
+      "fixed_tax": 133488.54,
       "rate": 0.35
     }
   ],
@@ -316,5 +316,5 @@
       "triple_pay": true
     }
   ],
-  "_comment_isr_subsidy": "Subsidio para el empleo 2026 — DOF 31-Dec-2025. Flat credit of 15.02% × UMA mensual ($3,566.22) = $535.65/month for workers with monthly income up to $11,492.66. Replaces the pre-2024 multi-bracket table. January 2026 technically uses 15.59% × UMA_jan ($3,439.46) = $536.21 — difference of $0.56 is immaterial; single rate used for simplicity."
+  "_comment_isr_subsidy": "Subsidio para el empleo 2026 — DOF 28-Dec-2025 (Anexo 8 RMF 2026). Flat credit of 15.02% x UMA mensual ($3,566.22) = $535.65/month for workers with monthly income up to $11,492.66. Replaces the pre-2024 multi-bracket table."
 }
