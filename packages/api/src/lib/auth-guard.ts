@@ -11,7 +11,15 @@
  *     // ... employer-only logic
  *   });
  */
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyRequest, FastifyReply } from "fastify";
+
+/** Constant-time string comparison — prevents timing-based key enumeration. */
+function safeCompare(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
 
 /**
  * Guards an employer-only route.
@@ -121,17 +129,4 @@ export function requireAdmin(req: FastifyRequest, reply: FastifyReply): boolean 
   const adminKey = process.env.ADMIN_API_KEY;
 
   if (!adminKey) {
-    reply.status(503).send({ error: "Admin API not configured — set ADMIN_API_KEY env var" });
-    return false;
-  }
-
-  const auth = req.headers.authorization ?? "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-
-  if (!token || token !== adminKey) {
-    reply.status(401).send({ error: "Invalid or missing admin API key" });
-    return false;
-  }
-
-  return true;
-}
+    reply.status(503).send({ error: "Admin API not con
