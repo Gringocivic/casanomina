@@ -106,7 +106,15 @@ export function ownsResource(
   resourceEmployerId: string | null,
   reply: FastifyReply,
 ): boolean {
-  if (!process.env.CLERK_SECRET_KEY) return true;
+  if (!process.env.CLERK_SECRET_KEY) {
+    // Production with no Clerk key = misconfigured deployment. Fail closed.
+    if (process.env.NODE_ENV === "production") {
+      reply.status(503).send({ error: "Authentication not configured — set CLERK_SECRET_KEY" });
+      return false;
+    }
+    // Dev passthrough: allow everything when Clerk is not set up locally.
+    return true;
+  }
 
   const employerId = (req as any).employerId as string;
   if (!resourceEmployerId || employerId !== resourceEmployerId) {
@@ -122,11 +130,4 @@ export function ownsResource(
  * Set ADMIN_API_KEY in your environment. Requests must include:
  *   Authorization: Bearer <ADMIN_API_KEY>
  *
- * If ADMIN_API_KEY is not set the route is blocked entirely — there is no
- * dev-mode fallback, because these routes modify global rate configs.
- */
-export function requireAdmin(req: FastifyRequest, reply: FastifyReply): boolean {
-  const adminKey = process.env.ADMIN_API_KEY;
-
-  if (!adminKey) {
-    reply.status(503).send({ error: "Admin API not con
+ * If ADMIN_API_KE
