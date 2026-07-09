@@ -204,16 +204,16 @@ describe("calculateISR", () => {
 
   it("applies the 2026 flat subsidy (535.65) to a min-wage worker", () => {
     // 315.04 x 30 = 9451.20 -- within the [0.01, 11492.66] subsidy bracket.
-    // Tariff bracket [6332.06, 11128.01]: gross = 371.83 + (9451.20 - 6332.06) x 0.1088 = 711.19
-    // Net = 711.19 - 535.65 = 175.54  ->  6-day withholding = 35.11
+    // 2026 tariff bracket [7168.52, ...]: gross = 420.95 + (9451.20 - 7168.52) x 0.1088 = 669.31
+    // Net = 669.31 - 535.65 = 133.66  ->  6-day withholding = 26.73
     const result = calculateISR(RATES_2026.minimum_daily_wage_general, 6, RATES_2026);
     expect(result.monthly_income_equivalent).toBeCloseTo(
       RATES_2026.minimum_daily_wage_general * 30, 1
     );
     expect(result.monthly_employment_subsidy).toBe(535.65);
-    expect(result.monthly_isr_gross).toBeCloseTo(711.19, 1);
-    expect(result.monthly_isr_net).toBeCloseTo(175.54, 1);
-    expect(result.period_isr_withholding).toBeCloseTo(35.11, 1);
+    expect(result.monthly_isr_gross).toBeCloseTo(669.31, 1);
+    expect(result.monthly_isr_net).toBeCloseTo(133.66, 1);
+    expect(result.period_isr_withholding).toBeCloseTo(26.73, 1);
   });
 
   it("applies full subsidy when monthly income is just below the 11492.66 ceiling", () => {
