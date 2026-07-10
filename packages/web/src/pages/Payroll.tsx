@@ -710,4 +710,3 @@ export function Payroll() {
     </div>
   );
 }
-           
