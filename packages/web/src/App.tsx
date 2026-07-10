@@ -22,6 +22,9 @@ import { Settings } from "./pages/Settings";
 import { PayrollHistory } from "./pages/PayrollHistory";
 import { Termination } from "./pages/Termination";
 import { WorkerOnboarding } from "./pages/WorkerOnboarding";
+import { HomePage } from "./pages/HomePage";
+import { AboutPage } from "./pages/AboutPage";
+import { SupportPage } from "./pages/SupportPage";
 
 function AuthTokenSync() {
   const { getToken } = useAuth();
@@ -53,6 +56,30 @@ function PublicOrEmployerPage({ children }: { children: ReactNode }) {
   }
 
   return <PublicLayout>{children}</PublicLayout>;
+}
+
+/**
+ * Root ("/") route.
+ * - Signed-in  → defer entirely to PortalRouter, same as every other path
+ *                under the "/*" catch-all below. This is what keeps the
+ *                employer dashboard (and worker home / onboarding redirect)
+ *                at "/" for signed-in users of any role.
+ * - Signed-out → public marketing homepage instead of a sign-in redirect.
+ *
+ * Note: this intentionally does NOT reuse PublicOrEmployerPage. That helper
+ * always renders its `children` prop, which works for /calculators and /laws
+ * (one shared component for both audiences) but would be wrong here — it
+ * would shadow PortalRouter's own path="/" route (Dashboard) with HomePage
+ * for every signed-in user, since an exact "/" match always outranks the
+ * "/*" catch-all in React Router regardless of declaration order.
+ */
+function RootRoute() {
+  return (
+    <>
+      <SignedIn><PortalRouter /></SignedIn>
+      <SignedOut><PublicLayout><HomePage /></PublicLayout></SignedOut>
+    </>
+  );
 }
 
 /**
@@ -110,6 +137,14 @@ export default function App() {
           {/* Public pages — accessible without auth; employers see sidebar layout */}
           <Route path="/calculators" element={<PublicOrEmployerPage><Calculators /></PublicOrEmployerPage>} />
           <Route path="/laws"        element={<PublicOrEmployerPage><LawsAndRights /></PublicOrEmployerPage>} />
+
+          {/* Public homepage — signed-out visitors land here instead of being
+              redirected to sign-in. Signed-in users of any role still get
+              PortalRouter's normal "/" behavior (dashboard/worker home/
+              onboarding) via RootRoute above. */}
+          <Route path="/"        element={<RootRoute />} />
+          <Route path="/about"   element={<PublicOrEmployerPage><AboutPage /></PublicOrEmployerPage>} />
+          <Route path="/support" element={<PublicOrEmployerPage><SupportPage /></PublicOrEmployerPage>} />
 
           {/* Protected routes — everything else requires sign-in */}
           <Route
