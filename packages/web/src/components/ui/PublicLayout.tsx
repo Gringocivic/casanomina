@@ -5,12 +5,20 @@
  * sample contract). No sidebar — just logo, language toggle, and auth links.
  */
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
 import { useLanguage } from "../../hooks/useLanguage";
 
+const NAV_LINKS = [
+  { to: "/laws", en: "Laws", es: "Leyes" },
+  { to: "/calculators", en: "Calculators", es: "Calculadoras" },
+  { to: "/about", en: "About", es: "Acerca de" },
+  { to: "/support", en: "Support", es: "Apoyo" },
+];
+
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { lang, setLang } = useLanguage();
+  const location = useLocation();
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -24,6 +32,22 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="font-bold text-gray-900">CasaNomina</span>
           </Link>
+
+          {/* Nav links */}
+          <nav className="hidden md:flex items-center gap-6">
+            {NAV_LINKS.map((link) => {
+              const active = location.pathname === link.to;
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className={active ? "text-sm text-gray-900 font-medium" : "text-sm text-gray-500 hover:text-gray-700"}
+                >
+                  {lang === "en" ? link.en : link.es}
+                </Link>
+              );
+            })}
+          </nav>
 
           {/* Right side: language + auth */}
           <div className="flex items-center gap-3">
