@@ -17,6 +17,7 @@ import { Badge } from "../components/ui/Badge";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
 import { Button } from "../components/ui/Button";
 import { useMinimumWage, isSbcStale } from "../components/SbcReminderBadge";
+import { QuickPayrollModal } from "../components/QuickPayrollModal";
 import {
   Users, AlertTriangle, CalendarX2, ChevronDown, ChevronRight,
   Play, CheckCircle2, Circle, Info, Plus, TrendingUp, RefreshCw,
@@ -823,7 +824,7 @@ function StatBar({ workers, obligations, lang }: {
   );
 }
 
-function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
+function ObligationRow({ ob, lang, onRun }: { ob: Obligation; lang: "en" | "es"; onRun?: (workerId: string) => void }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const c = urgencyColor(ob.daysUntil, ob.isOverdue);
@@ -872,7 +873,7 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => navigate(`/payroll?worker=${ob.workerId}`)}
+              onClick={() => (onRun ? onRun(ob.workerId!) : navigate(`/payroll?worker=${ob.workerId}`))}
               className="flex items-center gap-1"
             >
               <Play size={12} />
@@ -907,7 +908,7 @@ function ObligationRow({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
   );
 }
 
-function PaymentObligations({ workers, lang }: { workers: any[]; lang: "en" | "es" }) {
+function PaymentObligations({ workers, lang, onRun }: { workers: any[]; lang: "en" | "es"; onRun?: (workerId: string) => void }) {
   const today = useMemo(() => new Date(), []);
   const obligations = useMemo(() => buildObligations(workers, today), [workers, today]);
 
@@ -934,7 +935,7 @@ function PaymentObligations({ workers, lang }: { workers: any[]; lang: "en" | "e
             {lang === "es" ? "Nómina" : "Worker payroll"}
           </p>
           <div className="space-y-2">
-            {workerObs.map((ob) => <ObligationRow key={ob.id} ob={ob} lang={lang} />)}
+            {workerObs.map((ob) => <ObligationRow key={ob.id} ob={ob} lang={lang} onRun={onRun} />)}
           </div>
         </div>
       )}
@@ -1059,6 +1060,63 @@ function SbcReminders({ workers, lang }: { workers: any[]; lang: "en" | "es" }) 
           >
             {w.full_name}
           </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Approved payroll runs not yet marked paid — a to-do item on the dashboard.
+ * Lets the employer mark them paid inline (POST /api/payroll/:id/mark-paid)
+ * without having to open Payroll History.
+ */
+function UnpaidApprovedRuns({ runs, lang, onChanged }: { runs: any[]; lang: "en" | "es"; onChanged: () => void }) {
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (runs.length === 0) return null;
+
+  async function markPaid(id: string) {
+    setPayingId(id);
+    setError(null);
+    try {
+      await api.payroll.markPaid(id);
+      onChanged();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setPayingId(null);
+    }
+  }
+
+  return (
+    <Card className="bg-blue-50 border-blue-200 mb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <Clock size={16} className="text-blue-600" />
+        <h3 className="font-semibold text-gray-900 text-sm">
+          {lang === "es" ? "Nóminas aprobadas por pagar" : "Approved payroll awaiting payment"}
+        </h3>
+        <Badge variant="warning">{runs.length}</Badge>
+      </div>
+      {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+      <div className="space-y-2">
+        {runs.map((r) => (
+          <div key={r.id} className="flex items-center justify-between gap-3 bg-white border border-blue-100 rounded-xl px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{r.worker_name}</p>
+              <p className="text-xs text-gray-500">
+                {fmtShortDate(isoToDate(r.period_start), lang)} – {fmtShortDate(isoToDate(r.period_end), lang)}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <MoneyAmount amount={r.net_pay} size="sm" className="text-gray-900 font-semibold" />
+              <Button size="sm" variant="secondary" loading={payingId === r.id} onClick={() => markPaid(r.id)}>
+                <CheckCircle2 size={14} />
+                {lang === "es" ? "Marcar pagada" : "Mark paid"}
+              </Button>
+            </div>
+          </div>
         ))}
       </div>
     </Card>
@@ -1226,6 +1284,11 @@ export function Dashboard() {
 
   const activeWorkers = workers ?? [];
 
+  // Quick payroll modal + approved-but-unpaid runs for the to-do area.
+  const [quickPayrollWorker, setQuickPayrollWorker] = useState<any>(null);
+  const { data: allRuns, refetch: refetchRuns } = useApi(() => api.payrollHistory.all(), []);
+  const approvedUnpaid = (allRuns ?? []).filter((r: any) => r.status === "approved");
+
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -1293,7 +1356,15 @@ export function Dashboard() {
           )}
 
           {activeWorkers.length > 0 && (
-            <PaymentObligations workers={activeWorkers} lang={lang} />
+            <PaymentObligations
+              workers={activeWorkers}
+              lang={lang}
+              onRun={(id) => setQuickPayrollWorker(activeWorkers.find((w: any) => w.id === id) ?? null)}
+            />
+          )}
+
+          {approvedUnpaid.length > 0 && (
+            <UnpaidApprovedRuns runs={approvedUnpaid} lang={lang} onChanged={refetchRuns} />
           )}
 
           {activeWorkers.length > 0 && (
@@ -1309,6 +1380,14 @@ export function Dashboard() {
 
           <DidYouKnow lang={lang} />
         </>
+      )}
+
+      {quickPayrollWorker && (
+        <QuickPayrollModal
+          worker={quickPayrollWorker}
+          onClose={() => setQuickPayrollWorker(null)}
+          onSaved={() => { refetch(); refetchRuns(); }}
+        />
       )}
     </div>
   );
