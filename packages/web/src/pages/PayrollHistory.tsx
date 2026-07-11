@@ -9,8 +9,9 @@ import { useApi } from "../hooks/useApi";
 import { useLanguage } from "../hooks/useLanguage";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
-import { History, Download, Loader2, Users, Banknote, TrendingUp } from "lucide-react";
+import { History, Download, Loader2, Users, Banknote, TrendingUp, FileDown } from "lucide-react";
 
 type Run = {
   id: string; worker_id: string; worker_name: string;
@@ -21,6 +22,69 @@ type Run = {
 
 function statusVariant(s: string): "success" | "warning" | "neutral" | "error" {
   return s === "paid" ? "success" : s === "approved" ? "warning" : "neutral";
+}
+
+/**
+ * CSV columns (in order): Worker, Period Start, Period End, Days Worked,
+ * Status, Gross Wages, Deductions, Net Pay, Employer Cost, Paid Date.
+ *
+ * "Deductions" is derived as gross_wages - net_pay (worker IMSS + ISR
+ * withheld) since /api/payroll/all does not expose a single combined
+ * deductions field — this keeps the export a pure client-side
+ * serialization of already-loaded rows with no new endpoint.
+ *
+ * One field per RFC 4180 cell; fields containing a comma, quote, or
+ * newline are wrapped in double quotes with internal quotes doubled.
+ */
+function csvEscape(value: string | number): string {
+  const s = String(value);
+  if (/[",\n\r]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function buildPayrollCsv(rows: Run[]): string {
+  const headers = [
+    "Worker", "Period Start", "Period End", "Days Worked", "Status",
+    "Gross Wages", "Deductions", "Net Pay", "Employer Cost", "Paid Date",
+  ];
+  const lines = [headers.map(csvEscape).join(",")];
+
+  for (const r of rows) {
+    const gross = parseFloat(r.gross_wages);
+    const net = parseFloat(r.net_pay);
+    const deductions = (gross - net).toFixed(2);
+    lines.push([
+      csvEscape(r.worker_name),
+      csvEscape(r.period_start),
+      csvEscape(r.period_end),
+      csvEscape(r.days_worked),
+      csvEscape(r.status),
+      csvEscape(gross.toFixed(2)),
+      csvEscape(deductions),
+      csvEscape(net.toFixed(2)),
+      csvEscape(parseFloat(r.employer_total_cost).toFixed(2)),
+      csvEscape(r.paid_at ?? ""),
+    ].join(","));
+  }
+
+  return lines.join("\r\n");
+}
+
+/** Serializes the given rows to CSV and triggers a browser download. UTF-8 with BOM so Excel opens accents correctly. */
+function downloadPayrollCsv(rows: Run[]) {
+  const csv = buildPayrollCsv(rows);
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const today = new Date().toISOString().split("T")[0];
+  a.download = `payroll_history_${today}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function PayrollHistory() {
@@ -84,16 +148,28 @@ export function PayrollHistory() {
 
   return (
     <div className="p-8 max-w-5xl">
-      <div className="mb-8 flex items-center gap-3">
-        <History size={20} className="text-terracotta-500" />
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {T("Payroll History", "Historial de Nómina")}
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {T("All payroll runs across all workers", "Todos los recibos de todos los trabajadores")}
-          </p>
+      <div className="mb-8 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <History size={20} className="text-terracotta-500" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {T("Payroll History", "Historial de Nómina")}
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {T("All payroll runs across all workers", "Todos los recibos de todos los trabajadores")}
+            </p>
+          </div>
         </div>
+        {!loading && allRuns.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => downloadPayrollCsv(filtered)}
+          >
+            <FileDown size={14} />
+            {T("Export CSV", "Exportar CSV")}
+          </Button>
+        )}
       </div>
 
       {/* Summary stats */}

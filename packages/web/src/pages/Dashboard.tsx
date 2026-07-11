@@ -16,10 +16,11 @@ import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
 import { Button } from "../components/ui/Button";
+import { useMinimumWage, isSbcStale } from "../components/SbcReminderBadge";
 import {
   Users, AlertTriangle, CalendarX2, ChevronDown, ChevronRight,
   Play, CheckCircle2, Circle, Info, Plus, TrendingUp, RefreshCw,
-  Clock, AlertCircle,
+  Clock, AlertCircle, ShieldAlert,
 } from "lucide-react";
 import {
   RATES_2026,
@@ -1023,6 +1024,47 @@ function OnboardingPending({ workers, lang }: { workers: any[]; lang: "en" | "es
   );
 }
 
+/**
+ * Dashboard-level SBC reminder card — lists workers whose daily_salary is
+ * below the current minimum wage for their zone (see components/SbcReminderBadge.tsx
+ * for the trigger rationale). Informational only; links to the worker's
+ * profile so the employer can review and update the salary / re-report to IMSS.
+ */
+function SbcReminders({ workers, lang }: { workers: any[]; lang: "en" | "es" }) {
+  const minWage = useMinimumWage();
+  const flagged = workers.filter((w) => isSbcStale(w, minWage));
+
+  if (flagged.length === 0) return null;
+
+  return (
+    <Card className="bg-amber-50 border-amber-200 mb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <ShieldAlert size={16} className="text-amber-600" />
+        <h3 className="font-semibold text-gray-900 text-sm">
+          {lang === "es" ? "Posible SBC desactualizado" : "SBC may need review"}
+        </h3>
+        <Badge variant="warning">{flagged.length}</Badge>
+      </div>
+      <p className="text-xs text-amber-700 mb-3">
+        {lang === "es"
+          ? "El salario diario de estas trabajadoras está por debajo del salario mínimo vigente. Considera actualizarlo y reportar el nuevo SBC al IMSS."
+          : "These workers' daily salary is below the current minimum wage. Consider updating it and re-reporting the SBC to IMSS."}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {flagged.map((w) => (
+          <Link
+            key={w.id}
+            to={`/workers/${w.id}`}
+            className="text-xs font-medium bg-white border border-amber-200 text-amber-800 px-2.5 py-1 rounded-full hover:bg-amber-100 transition-colors"
+          >
+            {w.full_name}
+          </Link>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 const HOLIDAYS = RATES_2026.mandatory_holidays_2026 ?? [];
 
 function UpcomingHolidays({ lang }: { lang: "en" | "es" }) {
@@ -1252,6 +1294,10 @@ export function Dashboard() {
 
           {activeWorkers.length > 0 && (
             <PaymentObligations workers={activeWorkers} lang={lang} />
+          )}
+
+          {activeWorkers.length > 0 && (
+            <SbcReminders workers={activeWorkers} lang={lang} />
           )}
 
           {activeWorkers.length > 0 && (

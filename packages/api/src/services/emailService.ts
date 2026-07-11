@@ -17,7 +17,9 @@ async function getClient() {
 }
 
 function fromAddress(): string {
-  return process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+  // EMAIL_FROM is the documented var name (.env.example); RESEND_FROM_EMAIL
+  // is kept as a fallback for compatibility with existing docker-compose.yml config.
+  return process.env.EMAIL_FROM ?? process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
 }
 
 // ── Templates ─────────────────────────────────────────────────────────────────
