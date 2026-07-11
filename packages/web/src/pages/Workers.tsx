@@ -23,9 +23,11 @@ import { api } from "../lib/api";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { MoneyAmount } from "../components/ui/MoneyAmount";
+import { QuickPayrollModal } from "../components/QuickPayrollModal";
+import { SbcReminderBadge, useMinimumWage } from "../components/SbcReminderBadge";
 import {
   Users, Plus, Pencil, Trash2, Send, Copy, CheckCircle2,
-  Shield, X, UserMinus, Circle, TrendingUp, Calendar,
+  Shield, X, UserMinus, Circle, TrendingUp, Calendar, Zap,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -72,6 +74,8 @@ const T = {
   nssPlaceholder:{ en: "NSS (11 digits)",     es: "NSS (11 dígitos)" },
   saveImss:      { en: "Save",                es: "Guardar" },
   savingImss:    { en: "Saving…",             es: "Guardando…" },
+  // Quick payroll
+  runPayroll:    { en: "Run Payroll",         es: "Procesar Nómina" },
 };
 
 // ── Onboarding pill ───────────────────────────────────────────────────────────
@@ -127,6 +131,10 @@ export function Workers() {
   const [imssId, setImssId]       = useState<string | null>(null);
   const [imssNss, setImssNss]     = useState("");
   const [imssLoading, setImssLoading] = useState(false);
+
+  // Quick payroll modal state
+  const [quickPayrollWorker, setQuickPayrollWorker] = useState<any>(null);
+  const minWage = useMinimumWage();
 
   const today = new Date().toISOString().split("T")[0];
   const yearStart = `${new Date().getFullYear()}-01-01`;
@@ -265,6 +273,7 @@ export function Workers() {
                       {w.role && (
                         <span className="text-xs text-gray-400 capitalize">{w.role}</span>
                       )}
+                      <SbcReminderBadge worker={w} minWage={minWage} />
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-sm text-gray-500">
                       <span>{T.since[lang]} {format(parseISO(w.start_date), "MMM d, yyyy")}</span>
@@ -364,6 +373,10 @@ export function Workers() {
 
                 {/* ── Action buttons ────────────────────────── */}
                 <div className="flex items-center gap-2 pt-3 border-t border-gray-50 flex-wrap">
+                  <Button variant="primary" size="sm" onClick={() => setQuickPayrollWorker(w)}>
+                    <Zap size={14} />
+                    {T.runPayroll[lang]}
+                  </Button>
                   <Link to={`/workers/${w.id}/terminate`}>
                     <Button variant="secondary" size="sm">
                       <UserMinus size={14} />
@@ -525,6 +538,14 @@ export function Workers() {
             <Button><Plus size={16} />{T.addWorker[lang]}</Button>
           </Link>
         </Card>
+      )}
+
+      {quickPayrollWorker && (
+        <QuickPayrollModal
+          worker={quickPayrollWorker}
+          onClose={() => setQuickPayrollWorker(null)}
+          onSaved={() => { refetch(); }}
+        />
       )}
     </div>
   );
