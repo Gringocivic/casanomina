@@ -18,7 +18,8 @@ import { useLanguage } from "../hooks/useLanguage";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { MoneyAmount } from "./ui/MoneyAmount";
-import { X, CheckCircle, Zap } from "lucide-react";
+import { RATES_2026 } from "@casanomina/calculator";
+import { X, CheckCircle, Zap, CalendarX2, AlertTriangle } from "lucide-react";
 
 interface QuickPayrollModalProps {
   worker: any;
@@ -66,6 +67,19 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
   const [saving, setSaving] = useState(false);
   const [savedRun, setSavedRun] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [holidayDecisions, setHolidayDecisions] = useState<Record<string, "paid_off" | "worked">>({});
+  const [restDaysWorked, setRestDaysWorked] = useState(0);
+
+  // Mandatory holidays that fall inside the selected pay period (LFT Art. 74/75).
+  const detectedHolidays = useMemo(() => {
+    if (!periodForm.start_date || !periodForm.end_date) return [];
+    const start = new Date(periodForm.start_date + "T12:00:00");
+    const end = new Date(periodForm.end_date + "T12:00:00");
+    return (RATES_2026.mandatory_holidays_2026 ?? []).filter((h: any) => {
+      const d = new Date(h.date + "T12:00:00");
+      return d >= start && d <= end;
+    });
+  }, [periodForm.start_date, periodForm.end_date]);
 
   // Re-derive the suggested period if a different worker is passed in
   // while the modal is already open (defensive — shouldn't normally happen).
@@ -74,6 +88,8 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
     setPreview(null);
     setSavedRun(null);
     setError(null);
+    setHolidayDecisions({});
+    setRestDaysWorked(0);
   }, [worker.id]);
 
   const fieldClass = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-terracotta-500/40 focus:border-terracotta-500";
@@ -83,10 +99,13 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
     setPreviewing(true);
     setError(null);
     try {
+      const workedHolidays = detectedHolidays.filter((h: any) => (holidayDecisions[h.date] ?? "paid_off") === "worked").length;
       const result = await api.payroll.preview({
         worker_id: worker.id,
         ...periodForm,
         days_worked: Number(periodForm.days_worked),
+        holiday_days_worked: workedHolidays,
+        rest_days_worked: restDaysWorked,
         vacation_days: Number(periodForm.vacation_days ?? 0),
       });
       setPreview(result);
@@ -101,10 +120,13 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
     setSaving(true);
     setError(null);
     try {
+      const workedHolidays = detectedHolidays.filter((h: any) => (holidayDecisions[h.date] ?? "paid_off") === "worked").length;
       const run = await api.payroll.create({
         worker_id: worker.id,
         ...periodForm,
         days_worked: Number(periodForm.days_worked),
+        holiday_days_worked: workedHolidays,
+        rest_days_worked: restDaysWorked,
         vacation_days: Number(periodForm.vacation_days ?? 0),
       });
       const approved = await api.payroll.approve(run.id);
@@ -122,6 +144,8 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
     setPreview(null);
     setSavedRun(null);
     setError(null);
+    setHolidayDecisions({});
+    setRestDaysWorked(0);
     onClose();
   }
 
@@ -215,6 +239,86 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
                     value={periodForm.vacation_days}
                     onChange={(e) => { setPeriodForm(f => ({ ...f, vacation_days: e.target.value })); setPreview(null); }}
                   />
+                </div>
+
+                {detectedHolidays.length > 0 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                    <div className="flex items-center gap-2">
+                      <CalendarX2 size={15} className="text-amber-600 flex-shrink-0" />
+                      <p className="text-sm font-semibold text-amber-800">
+                        {detectedHolidays.length === 1
+                          ? (lang === "en" ? "1 mandatory holiday in this period" : "1 día festivo obligatorio en este periodo")
+                          : (lang === "en" ? `${detectedHolidays.length} mandatory holidays in this period` : `${detectedHolidays.length} días festivos en este periodo`)}
+                      </p>
+                    </div>
+                    <p className="text-xs text-amber-700">
+                      {lang === "en"
+                        ? "Mandatory holidays are always paid. Did the worker come in anyway?"
+                        : "Los días festivos siempre son pagados. ¿La trabajadora fue de todas formas?"}
+                    </p>
+                    {detectedHolidays.map((h: any) => {
+                      const decision = holidayDecisions[h.date] ?? "paid_off";
+                      const btn = (val: "paid_off" | "worked", label: string, note: string) => (
+                        <button
+                          type="button"
+                          onClick={() => { setHolidayDecisions(d => ({ ...d, [h.date]: val })); setPreview(null); }}
+                          className={`flex-1 text-center px-3 py-2 rounded-xl border-2 text-xs font-medium transition-colors ${
+                            decision === val
+                              ? "border-terracotta-500 bg-terracotta-50 text-terracotta-700"
+                              : "border-gray-200 text-gray-500 hover:border-gray-300 bg-white"
+                          }`}
+                        >
+                          <div>{label}</div>
+                          <div className="text-gray-400 font-normal mt-0.5">{note}</div>
+                        </button>
+                      );
+                      return (
+                        <div key={h.date} className="bg-white rounded-xl p-2.5 border border-amber-100">
+                          <p className="text-sm font-medium text-gray-900 mb-2">{h.name}</p>
+                          <div className="flex gap-2">
+                            {btn("paid_off", lang === "en" ? "Day off (paid)" : "Descanso pagado", lang === "en" ? "No change" : "Sin cambio")}
+                            {btn("worked", lang === "en" ? "Worked it" : "Trabajó", lang === "en" ? "+triple pay" : "+pago triple")}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {detectedHolidays.some((h: any) => (holidayDecisions[h.date] ?? "paid_off") === "worked") && (
+                      <div className="flex items-start gap-2 p-2 bg-terracotta-50 border border-terracotta-100 rounded-lg">
+                        <AlertTriangle size={14} className="text-terracotta-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-terracotta-700">
+                          {lang === "en"
+                            ? "Triple pay applies: 2× daily salary bonus per holiday worked (LFT Art. 75)."
+                            : "Aplica pago triple: bono de 2× salario diario por festivo trabajado (LFT Art. 75)."}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">
+                      {lang === "en" ? "Rest days worked" : "Días de descanso trabajados"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {lang === "en"
+                        ? "Came in on a scheduled day off — double pay (LFT Art. 73)."
+                        : "Vino en su día de descanso — pago doble (LFT Art. 73)."}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setRestDaysWorked(n => Math.max(0, n - 1)); setPreview(null); }}
+                      className="w-8 h-8 rounded-full border-2 border-gray-200 text-gray-500 hover:border-gray-400 flex items-center justify-center font-bold text-lg"
+                    >−</button>
+                    <span className="w-6 text-center font-semibold text-gray-800">{restDaysWorked}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setRestDaysWorked(n => n + 1); setPreview(null); }}
+                      className="w-8 h-8 rounded-full border-2 border-gray-200 text-gray-500 hover:border-gray-400 flex items-center justify-center font-bold text-lg"
+                    >+</button>
+                  </div>
                 </div>
 
                 <Button
