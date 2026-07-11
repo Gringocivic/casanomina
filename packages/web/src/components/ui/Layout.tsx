@@ -77,7 +77,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </button>
           </div>
           <div className="flex items-center gap-3 px-3 py-2">
-            <UserButton afterSignOutUrl="/sign-in" />
+            <UserButton afterSignOutUrl="/" />
             <span className="text-sm text-gray-600">
               {lang === "en" ? "Account" : "Cuenta"}
             </span>
