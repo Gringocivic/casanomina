@@ -365,9 +365,15 @@ export function Calendar() {
         </button>
       </div>
 
-      {/* 3-month grid */}
+      {/* Month grid: single month below md (browsed with the prev/next controls
+          above), three months across at md+ */}
       <Card className="p-4 mb-4">
-        <div className="flex gap-6">
+        <div className="md:hidden">
+          <MonthGrid key={`${months[0].year}-${months[0].month}`}
+            year={months[0].year} month={months[0].month}
+            events={events} selected={selected} onSelect={setSelected} lang={lang} />
+        </div>
+        <div className="hidden md:flex gap-6">
           {months.map(({ year, month }) => (
             <MonthGrid key={`${year}-${month}`}
               year={year} month={month}
