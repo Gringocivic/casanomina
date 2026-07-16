@@ -252,58 +252,105 @@ export function PayrollHistory() {
           <p className="text-sm text-gray-400 mt-1">{T("Run payroll for a worker to see it here.", "Procesa una nómina para verla aquí.")}</p>
         </Card>
       ) : (
-        <Card className="overflow-hidden p-0">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left text-xs font-medium text-gray-500 px-5 py-3">{T("Worker", "Trabajador")}</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">{T("Period", "Período")}</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">{T("Status", "Estado")}</th>
-                <th className="text-right text-xs font-medium text-gray-500 px-4 py-3">{T("Net Pay", "Neto")}</th>
-                <th className="text-right text-xs font-medium text-gray-500 px-4 py-3">{T("Employer Cost", "Costo Patrón")}</th>
-                <th className="text-right text-xs font-medium text-gray-500 px-5 py-3">PDF</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map(run => (
-                <tr key={run.id} className="hover:bg-gray-50/50">
-                  <td className="py-3 px-5">
-                    <p className="text-sm font-medium text-gray-900">{run.worker_name}</p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <p className="text-sm text-gray-700">
-                      {format(parseISO(run.period_start), "MMM d")} – {format(parseISO(run.period_end), "MMM d, yyyy")}
-                    </p>
-                    <p className="text-xs text-gray-400">{run.days_worked} {T("days", "días")}</p>
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge variant={statusVariant(run.status)}>
-                      {run.status === "paid" ? T("Paid","Pagado") : run.status === "approved" ? T("Approved","Aprobado") : T("Draft","Borrador")}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <MoneyAmount amount={run.net_pay} size="sm" className="text-sage-700 font-semibold" />
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <MoneyAmount amount={run.employer_total_cost} size="sm" className="text-terracotta-600 font-semibold" />
-                  </td>
-                  <td className="py-3 px-5 text-right">
-                    <button
-                      onClick={() => handleDownload(run)}
-                      disabled={downloadingId === run.id}
-                      className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 flex items-center gap-1 ml-auto"
-                    >
-                      {downloadingId === run.id
-                        ? <Loader2 size={13} className="animate-spin" />
-                        : <Download size={13} />}
-                      PDF
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <>
+          {/* Mobile (below sm): stacked label/value cards instead of a table */}
+          <div className="sm:hidden space-y-3">
+            {filtered.map(run => (
+              <Card key={run.id} className="p-4 text-sm space-y-1.5">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="font-medium text-gray-900">{run.worker_name}</p>
+                  <Badge variant={statusVariant(run.status)}>
+                    {run.status === "paid" ? T("Paid","Pagado") : run.status === "approved" ? T("Approved","Aprobado") : T("Draft","Borrador")}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-400">{T("Period", "Período")}:</span>
+                  <span className="text-xs text-gray-700 text-right">
+                    {format(parseISO(run.period_start), "MMM d")} – {format(parseISO(run.period_end), "MMM d, yyyy")}
+                    {" "}({run.days_worked} {T("days", "días")})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-400">{T("Net Pay", "Neto")}:</span>
+                  <MoneyAmount amount={run.net_pay} size="sm" className="text-sage-700 font-semibold" />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-400">{T("Employer Cost", "Costo Patrón")}:</span>
+                  <MoneyAmount amount={run.employer_total_cost} size="sm" className="text-terracotta-600 font-semibold" />
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-xs text-gray-400">PDF:</span>
+                  <button
+                    onClick={() => handleDownload(run)}
+                    disabled={downloadingId === run.id}
+                    className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {downloadingId === run.id
+                      ? <Loader2 size={13} className="animate-spin" />
+                      : <Download size={13} />}
+                    PDF
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* sm+ : the real table */}
+          <Card className="hidden sm:block overflow-hidden p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="text-left text-xs font-medium text-gray-500 px-5 py-3 whitespace-nowrap">{T("Worker", "Trabajador")}</th>
+                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">{T("Period", "Período")}</th>
+                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">{T("Status", "Estado")}</th>
+                    <th className="text-right text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">{T("Net Pay", "Neto")}</th>
+                    <th className="text-right text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">{T("Employer Cost", "Costo Patrón")}</th>
+                    <th className="text-right text-xs font-medium text-gray-500 px-5 py-3 whitespace-nowrap">PDF</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map(run => (
+                    <tr key={run.id} className="hover:bg-gray-50/50">
+                      <td className="py-3 px-5 whitespace-nowrap">
+                        <p className="text-sm font-medium text-gray-900">{run.worker_name}</p>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <p className="text-sm text-gray-700">
+                          {format(parseISO(run.period_start), "MMM d")} – {format(parseISO(run.period_end), "MMM d, yyyy")}
+                        </p>
+                        <p className="text-xs text-gray-400">{run.days_worked} {T("days", "días")}</p>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <Badge variant={statusVariant(run.status)}>
+                          {run.status === "paid" ? T("Paid","Pagado") : run.status === "approved" ? T("Approved","Aprobado") : T("Draft","Borrador")}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <MoneyAmount amount={run.net_pay} size="sm" className="text-sage-700 font-semibold" />
+                      </td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <MoneyAmount amount={run.employer_total_cost} size="sm" className="text-terracotta-600 font-semibold" />
+                      </td>
+                      <td className="py-3 px-5 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handleDownload(run)}
+                          disabled={downloadingId === run.id}
+                          className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 flex items-center gap-1 ml-auto"
+                        >
+                          {downloadingId === run.id
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <Download size={13} />}
+                          PDF
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
     </div>
   );

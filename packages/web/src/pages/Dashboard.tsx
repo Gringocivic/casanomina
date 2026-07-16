@@ -516,18 +516,18 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="text-gray-400 border-b border-gray-100">
-                <th className="text-left py-1 pr-3 font-medium">
+                <th className="text-left py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "Trabajadora" : "Worker"}
                 </th>
-                <th className="text-right py-1 pr-3 font-medium">SBC/día</th>
-                <th className="text-right py-1 pr-3 font-medium">
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">SBC/día</th>
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "IMSS patrón" : "Employer IMSS"}
                 </th>
-                <th className="text-right py-1 pr-3 font-medium">
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "IMSS trab. (retener)" : "Worker IMSS (withheld)"}
                 </th>
-                <th className="text-right py-1 pr-3 font-medium">INFONAVIT</th>
-                <th className="text-right py-1 font-medium text-terracotta-600">
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">INFONAVIT</th>
+                <th className="text-right py-1 font-medium text-terracotta-600 whitespace-nowrap">
                   {lang === "es" ? "Total patrón" : "Your total"}
                 </th>
               </tr>
@@ -535,7 +535,7 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             <tbody>
               {ob.workerDetails.map((w) => (
                 <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="py-1.5 pr-3">
+                  <td className="py-1.5 pr-3 whitespace-nowrap">
                     <span className="font-medium text-gray-800">{w.name}</span>
                     {!w.hasRuns && (
                       <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Estimado" : "Estimated"}>~</span>
@@ -546,30 +546,30 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                       </span>
                     )}
                   </td>
-                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.sbc)}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.employer_imss)}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-400 italic">{fmtMoney(w.worker_imss)}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.infonavit)}</td>
-                  <td className="text-right py-1.5 font-semibold text-gray-800">
+                  <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">{fmtMoney(w.sbc)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">{fmtMoney(w.employer_imss)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-400 italic whitespace-nowrap">{fmtMoney(w.worker_imss)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">{fmtMoney(w.infonavit)}</td>
+                  <td className="text-right py-1.5 font-semibold text-gray-800 whitespace-nowrap">
                     {fmtMoney((w.employer_imss ?? 0) + (w.infonavit ?? 0))}
                   </td>
                 </tr>
               ))}
               {ob.workerDetails.length > 1 && (
                 <tr className="border-t-2 border-gray-200 font-semibold bg-gray-50/50">
-                  <td className="py-1.5 pr-3 text-gray-700" colSpan={2}>
+                  <td className="py-1.5 pr-3 text-gray-700 whitespace-nowrap" colSpan={2}>
                     {lang === "es" ? "Totales" : "Totals"}
                   </td>
-                  <td className="text-right py-1.5 pr-3 text-gray-800">
+                  <td className="text-right py-1.5 pr-3 text-gray-800 whitespace-nowrap">
                     {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.employer_imss ?? 0), 0))}
                   </td>
-                  <td className="text-right py-1.5 pr-3 text-gray-400 italic font-normal">
+                  <td className="text-right py-1.5 pr-3 text-gray-400 italic font-normal whitespace-nowrap">
                     {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.worker_imss ?? 0), 0))}
                   </td>
-                  <td className="text-right py-1.5 pr-3 text-gray-800">
+                  <td className="text-right py-1.5 pr-3 text-gray-800 whitespace-nowrap">
                     {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.infonavit ?? 0), 0))}
                   </td>
-                  <td className="text-right py-1.5 text-terracotta-700 font-bold">
+                  <td className="text-right py-1.5 text-terracotta-700 font-bold whitespace-nowrap">
                     {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.employer_imss ?? 0) + (w.infonavit ?? 0), 0))}
                   </td>
                 </tr>
@@ -617,13 +617,13 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="text-gray-400 border-b border-gray-100">
-                  <th className="text-left py-1 pr-3 font-medium">
+                  <th className="text-left py-1 pr-3 font-medium whitespace-nowrap">
                     {lang === "es" ? "Trabajadora" : "Worker"}
                   </th>
-                  <th className="text-right py-1 pr-3 font-medium">
+                  <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">
                     {lang === "es" ? "ISR mensual ~" : "Monthly ISR ~"}
                   </th>
-                  <th className="text-right py-1 font-medium">
+                  <th className="text-right py-1 font-medium whitespace-nowrap">
                     {lang === "es" ? "Retenido" : "Withheld"}
                   </th>
                 </tr>
@@ -631,13 +631,13 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
               <tbody>
                 {ob.workerDetails.map((w) => (
                   <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="py-1.5 pr-3 font-medium text-gray-800">
+                    <td className="py-1.5 pr-3 font-medium text-gray-800 whitespace-nowrap">
                       {w.name}
                       {!w.hasRuns && (
                         <span className="ml-1 text-amber-400 text-xs" title={lang === "es" ? "Sin nóminas registradas" : "No runs recorded"}>~</span>
                       )}
                     </td>
-                    <td className="text-right py-1.5 pr-3 text-gray-600">
+                    <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">
                       {w.isr_monthly && w.isr_monthly > 0
                         ? fmtMoney(w.isr_monthly)
                         : w.hasRuns
@@ -645,7 +645,7 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
                           : <span className="text-gray-400 italic">{lang === "es" ? "estimado" : "~estimated"}</span>
                       }
                     </td>
-                    <td className="text-right py-1.5 text-gray-600">
+                    <td className="text-right py-1.5 text-gray-600 whitespace-nowrap">
                       {w.hasRuns
                         ? fmtMoney(w.current_month_isr ?? 0)
                         : <span className="text-gray-300">—</span>
@@ -656,9 +656,9 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
               </tbody>
               <tfoot>
                 <tr className={`border-t border-gray-200 ${allPaid ? "font-bold text-gray-900" : "text-gray-500"}`}>
-                  <td className="pt-1.5 pr-3">{lang === "es" ? "Total" : "Total"}</td>
-                  <td className="text-right pt-1.5 pr-3">{fmtMoney(totalMonthly)}</td>
-                  <td className="text-right pt-1.5">{fmtMoney(totalWithheld)}</td>
+                  <td className="pt-1.5 pr-3 whitespace-nowrap">{lang === "es" ? "Total" : "Total"}</td>
+                  <td className="text-right pt-1.5 pr-3 whitespace-nowrap">{fmtMoney(totalMonthly)}</td>
+                  <td className="text-right pt-1.5 whitespace-nowrap">{fmtMoney(totalWithheld)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -677,19 +677,19 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="text-gray-400 border-b border-gray-100">
-                <th className="text-left py-1 pr-3 font-medium">
+                <th className="text-left py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "Trabajadora" : "Worker"}
                 </th>
-                <th className="text-right py-1 pr-3 font-medium">
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "Salario/día" : "Daily salary"}
                 </th>
-                <th className="text-right py-1 pr-3 font-medium">
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "Días trab. YTD" : "Days worked YTD"}
                 </th>
-                <th className="text-right py-1 pr-3 font-medium">
+                <th className="text-right py-1 pr-3 font-medium whitespace-nowrap">
                   {lang === "es" ? "Aguinaldo ganado YTD" : "Aguinaldo earned YTD"}
                 </th>
-                <th className="text-right py-1 font-medium">
+                <th className="text-right py-1 font-medium whitespace-nowrap">
                   {lang === "es" ? "Aguinaldo estimado" : "Estimated aguinaldo"}
                 </th>
               </tr>
@@ -697,25 +697,25 @@ function GovDetailPanel({ ob, lang }: { ob: Obligation; lang: "en" | "es" }) {
             <tbody>
               {ob.workerDetails.map((w) => (
                 <tr key={w.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="py-1.5 pr-3 font-medium text-gray-800">{w.name}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.daily_salary)}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-600">{w.accrued_days ?? "—"}</td>
-                  <td className="text-right py-1.5 pr-3 text-gray-600">{fmtMoney(w.aguinaldo_amount)}</td>
-                  <td className="text-right py-1.5 text-amber-700 font-medium">{w.estimated_aguinaldo ? fmtMoney(w.estimated_aguinaldo) : "—"}</td>
+                  <td className="py-1.5 pr-3 font-medium text-gray-800 whitespace-nowrap">{w.name}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">{fmtMoney(w.daily_salary)}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">{w.accrued_days ?? "—"}</td>
+                  <td className="text-right py-1.5 pr-3 text-gray-600 whitespace-nowrap">{fmtMoney(w.aguinaldo_amount)}</td>
+                  <td className="text-right py-1.5 text-amber-700 font-medium whitespace-nowrap">{w.estimated_aguinaldo ? fmtMoney(w.estimated_aguinaldo) : "—"}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-200 font-semibold text-gray-700">
-                <td className="py-1.5 pr-3">{lang === "es" ? "Total" : "Total"}</td>
+                <td className="py-1.5 pr-3 whitespace-nowrap">{lang === "es" ? "Total" : "Total"}</td>
                 <td className="text-right py-1.5 pr-3"></td>
-                <td className="text-right py-1.5 pr-3">
+                <td className="text-right py-1.5 pr-3 whitespace-nowrap">
                   {ob.workerDetails.reduce((s, w) => s + (w.accrued_days ?? 0), 0)}
                 </td>
-                <td className="text-right py-1.5 pr-3 text-gray-700">
+                <td className="text-right py-1.5 pr-3 text-gray-700 whitespace-nowrap">
                   {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.aguinaldo_amount ?? 0), 0))}
                 </td>
-                <td className="text-right py-1.5 text-amber-700">
+                <td className="text-right py-1.5 text-amber-700 whitespace-nowrap">
                   {fmtMoney(ob.workerDetails.reduce((s, w) => s + (w.estimated_aguinaldo ?? 0), 0))}
                 </td>
               </tr>
