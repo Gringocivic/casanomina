@@ -4,9 +4,10 @@
  * Minimal header layout for public-facing pages (Calculators, Laws & Rights,
  * sample contract). No sidebar — just logo, language toggle, and auth links.
  */
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import { Menu, X } from "lucide-react";
 import { useLanguage } from "../../hooks/useLanguage";
 
 const NAV_LINKS = [
@@ -19,6 +20,12 @@ const NAV_LINKS = [
 export function PublicLayout({ children }: { children: ReactNode }) {
   const { lang, setLang } = useLanguage();
   const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Close the mobile menu automatically on route change.
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -49,8 +56,8 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          {/* Right side: language + auth */}
-          <div className="flex items-center gap-3">
+          {/* Right side: language + auth (desktop) */}
+          <div className="hidden md:flex items-center gap-3">
             {/* Language toggle */}
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
               <button
@@ -94,7 +101,93 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               </Link>
             </SignedIn>
           </div>
+
+          {/* Hamburger (mobile only) */}
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((open) => !open)}
+            aria-label={
+              isMenuOpen
+                ? (lang === "en" ? "Close menu" : "Cerrar menú")
+                : (lang === "en" ? "Open menu" : "Abrir menú")
+            }
+            aria-expanded={isMenuOpen}
+            className="md:hidden p-2 -mr-2 text-gray-600 hover:text-gray-900"
+          >
+            {isMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
+
+        {/* Mobile menu (slide-down) */}
+        {isMenuOpen && (
+          <div className="md:hidden border-t border-gray-100 bg-white">
+            <nav className="max-w-5xl mx-auto px-6 py-3 flex flex-col gap-1">
+              {NAV_LINKS.map((link) => {
+                const active = location.pathname === link.to;
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`px-2 py-2.5 rounded-lg text-sm ${
+                      active
+                        ? "text-gray-900 font-medium bg-gray-50"
+                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {lang === "en" ? link.en : link.es}
+                  </Link>
+                );
+              })}
+
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 mt-2 w-fit">
+                <button
+                  onClick={() => setLang("en")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors
+                    ${lang === "en" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => setLang("es")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors
+                    ${lang === "es" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                >
+                  ES
+                </button>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col gap-2">
+                <SignedOut>
+                  <Link
+                    to="/sign-in"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-2 py-2"
+                  >
+                    {lang === "en" ? "Sign in" : "Iniciar sesión"}
+                  </Link>
+                  <Link
+                    to="/sign-up"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-sm font-semibold bg-terracotta-500 hover:bg-terracotta-600 text-white px-4 py-2 rounded-lg transition-colors text-center"
+                  >
+                    {lang === "en" ? "Get started" : "Comenzar"}
+                  </Link>
+                </SignedOut>
+
+                <SignedIn>
+                  <Link
+                    to="/"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="text-sm font-semibold bg-terracotta-500 hover:bg-terracotta-600 text-white px-4 py-2 rounded-lg transition-colors text-center"
+                  >
+                    {lang === "en" ? "Go to dashboard" : "Ir al inicio"}
+                  </Link>
+                </SignedIn>
+              </div>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Page content */}
