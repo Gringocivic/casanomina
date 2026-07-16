@@ -44,24 +44,25 @@
   vacation/benefit balances; plain-Spanish rights reference; self-run finiquito
   estimate; notification when a payroll period is approved/paid.
 
-## Open — mobile-friendliness (full analysis in MOBILE_READINESS.md)
-Build prompts for each item are in `mobile-build-prompts.md`. Public/marketing
-pages are already responsive; the authenticated app is desktop-only.
-- **[M1 · 🔴] Responsive app shell** — `Layout.tsx` fixed 256px sidebar
-  (`w-64 fixed`, main `ml-64`) never collapses. Add off-canvas drawer + hamburger
-  top bar below `md`. Highest-impact item; unlocks the rest.
-- **[M2 · 🔴] Public mobile nav** — `PublicLayout.tsx` links are `hidden md:flex`
-  with no hamburger, so Laws/Calculators/About/Support are unreachable on phones.
-- **[M3 · 🔴] Responsive tables** — `PayrollHistory.tsx`, `Payroll.tsx` (2),
-  `Dashboard.tsx` detail panels overflow; wrap in `overflow-x-auto` / reflow to
-  cards below `sm`.
-- **[M4 · 🔴] Responsive calendar** — `Calendar.tsx` shows 3 months side-by-side;
-  show one month on mobile, three-up at `md+`.
-- **[M5 · 🟡] Grid + padding sweep** — hardcoded `grid-cols-2` forms and
-  `grid-cols-3` stat blocks → `grid-cols-1 sm:...`; root `p-8` → `p-4 md:p-8`
-  across app pages.
-- **[M6 · 🟢] Mobile polish + QA** — touch targets ~44px, `overflow-x-hidden`
-  guard, text truncation, and a device-mode pass at 360/390/414px.
+## Mobile-friendliness — DONE (full analysis in MOBILE_READINESS.md)
+Public/marketing pages were already responsive; the authenticated app has now
+been made mobile-friendly. All merged to `main`.
+- **[M1 ✅] Responsive app shell** — `Layout.tsx` off-canvas drawer + hamburger
+  top bar below `md`; content full-width on mobile.
+- **[M2 ✅] Public mobile nav** — `PublicLayout.tsx` hamburger menu exposing
+  Laws/Calculators/About/Support + language + auth on phones.
+- **[M3 ✅] Responsive tables** — PayrollHistory reflows to cards below `sm`;
+  Payroll + Dashboard detail tables wrapped in `overflow-x-auto`.
+- **[M4 ✅] Responsive calendar** — one month on mobile (browse via prev/next),
+  three-up at `md+`.
+- **[M5 ✅] Grid + padding sweep** — form grids single-column, stat blocks stack,
+  `p-8` → `p-4 md:p-8` across app pages.
+- **Mid-stream fixes (✅):** `min-w-0` on `<main>` to stop page-level horizontal
+  overflow/zoom; global date/time input overflow fix in `index.css`; obligation
+  rows stack label/amount on mobile.
+- **[M6 · 🟢 remaining] Final QA + reactive polish** — device-mode/phone
+  walkthrough at 360/390/414px; fix any residual touch-target sizes or text
+  truncation as found. (No broad sweep needed — the structural issues are fixed.)
 
 ## Polish / follow-ups from the #1/#2/#3/#7 build (branch feat/backlog-1237)
 These are non-blocking notes from the code review of the four-feature branch.
