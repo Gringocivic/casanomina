@@ -14,13 +14,28 @@
   * {
     box-sizing: border-box;
   }
-  /* iOS/Safari give date & time inputs a UA-imposed min-width that overflows
-     narrow containers. Let them shrink to fit and never exceed their box. */
+  /* iOS/Safari give date & time inputs native chrome + a UA min-width that
+     overflows narrow containers. Flatten the appearance, let them shrink to
+     fit, and keep the value aligned inside the box. */
   input[type="date"],
   input[type="datetime-local"],
   input[type="month"],
   input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
     min-width: 0;
     max-width: 100%;
+    box-sizing: border-box;
+  }
+  input[type="date"]::-webkit-date-and-time-value,
+  input[type="datetime-local"]::-webkit-date-and-time-value,
+  input[type="month"]::-webkit-date-and-time-value,
+  input[type="time"]::-webkit-date-and-time-value {
+    text-align: left;
+    margin: 0;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    margin-left: 0;
   }
 }
