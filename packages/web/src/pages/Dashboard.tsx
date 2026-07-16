@@ -832,10 +832,11 @@ function ObligationRow({ ob, lang, onRun }: { ob: Obligation; lang: "en" | "es";
 
   return (
     <div className={`border rounded-xl ${c.border} ${c.bg} overflow-hidden`}>
-      <div className="flex items-center gap-3 p-4">
+      <div className="flex items-start sm:items-center gap-3 p-4">
         {typeIcon(ob.type)}
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-gray-900 text-sm">{ob.label}</span>
             {ob.sublabel && (
@@ -851,7 +852,7 @@ function ObligationRow({ ob, lang, onRun }: { ob: Obligation; lang: "en" | "es";
           <p className="text-xs text-gray-500 mt-0.5">{fmtDate(ob.dueDate, lang)}</p>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0 justify-between sm:justify-normal">
           <div className="text-right">
             {ob.amount_estimated != null ? (
               <div className="flex flex-col items-end gap-0.5">
@@ -890,6 +891,7 @@ function ObligationRow({ ob, lang, onRun }: { ob: Obligation; lang: "en" | "es";
               {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             </button>
           )}
+        </div>
         </div>
       </div>
 
