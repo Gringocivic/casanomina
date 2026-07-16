@@ -19,7 +19,7 @@ import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { MoneyAmount } from "./ui/MoneyAmount";
 import { RATES_2026 } from "@casanomina/calculator";
-import { X, CheckCircle, Zap, CalendarX2, AlertTriangle } from "lucide-react";
+import { X, CheckCircle, Zap, CalendarX2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 
 interface QuickPayrollModalProps {
   worker: any;
@@ -30,6 +30,16 @@ interface QuickPayrollModalProps {
 
 /** Same pay-frequency → period-length mapping used in pages/Payroll.tsx. */
 const FREQ_DAYS: Record<string, number> = { weekly: 7, biweekly: 14, "semi-monthly": 15, monthly: 30 };
+
+/** IMSS branches for the optional breakdown table, in display order. */
+const IMSS_BRANCHES: [string, { en: string; es: string }][] = [
+  ["enfermedad_maternidad", { en: "Sickness & Maternity", es: "Enfermedad y Maternidad" }],
+  ["invalidez_vida", { en: "Disability & Life", es: "Invalidez y Vida" }],
+  ["cesantia_vejez", { en: "Severance & Old Age", es: "Cesantía y Vejez" }],
+  ["retiro", { en: "Retirement", es: "Retiro" }],
+  ["guarderias_prestaciones_sociales", { en: "Daycare & Social", es: "Guarderías y Prest. Sociales" }],
+  ["riesgos_trabajo", { en: "Work Risk", es: "Riesgos de Trabajo" }],
+];
 
 function suggestPeriod(worker: any) {
   const freq: string = worker.pay_frequency ?? "weekly";
@@ -69,6 +79,7 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
   const [error, setError] = useState<string | null>(null);
   const [holidayDecisions, setHolidayDecisions] = useState<Record<string, "paid_off" | "worked">>({});
   const [restDaysWorked, setRestDaysWorked] = useState(0);
+  const [showBranches, setShowBranches] = useState(false);
 
   // Mandatory holidays that fall inside the selected pay period (LFT Art. 74/75).
   const detectedHolidays = useMemo(() => {
@@ -332,7 +343,7 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
 
               {preview && (
                 <div className="border-t border-gray-100 pt-5">
-                  <div className="grid grid-cols-3 gap-3 mb-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
                     <div className="p-3 bg-gray-50 rounded-xl text-center">
                       <p className="text-xs text-gray-500 mb-1">{lang === "en" ? "Gross" : "Bruto"}</p>
                       <MoneyAmount amount={preview.gross_wages} size="md" />
@@ -361,6 +372,50 @@ export function QuickPayrollModal({ worker, onClose, onSaved }: QuickPayrollModa
                       <MoneyAmount amount={preview.infonavit_employer_contribution} size="sm" className="text-gray-900" />
                     </div>
                   </div>
+
+                  {preview.imss?.branches && (
+                    <div className="mb-5">
+                      <button
+                        type="button"
+                        onClick={() => setShowBranches((s) => !s)}
+                        className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 mb-2"
+                      >
+                        {showBranches ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                        {lang === "en" ? "Show IMSS branch detail" : "Ver detalle por ramo IMSS"}
+                      </button>
+                      {showBranches && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-left text-gray-400 border-b">
+                                <th className="pb-1.5 pr-2 font-medium">{lang === "en" ? "Branch" : "Ramo"}</th>
+                                <th className="pb-1.5 text-right font-medium whitespace-nowrap">{lang === "en" ? "Employer" : "Patrón"}</th>
+                                <th className="pb-1.5 text-right font-medium whitespace-nowrap">{lang === "en" ? "Worker" : "Trabajadora"}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {IMSS_BRANCHES.map(([key, label]) => (
+                                <tr key={key} className="border-b border-gray-50 last:border-0">
+                                  <td className="py-1.5 pr-2 text-gray-600">{lang === "en" ? label.en : label.es}</td>
+                                  <td className="py-1.5 text-right text-gray-800 whitespace-nowrap">
+                                    <MoneyAmount amount={preview.imss.branches[key]?.employer ?? 0} size="sm" />
+                                  </td>
+                                  <td className="py-1.5 text-right text-gray-800 whitespace-nowrap">
+                                    <MoneyAmount amount={preview.imss.branches[key]?.worker ?? 0} size="sm" />
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr className="font-semibold text-gray-900">
+                                <td className="pt-1.5 pr-2">{lang === "en" ? "Total IMSS" : "Total IMSS"}</td>
+                                <td className="pt-1.5 text-right whitespace-nowrap"><MoneyAmount amount={preview.imss.total_employer} size="sm" /></td>
+                                <td className="pt-1.5 text-right whitespace-nowrap"><MoneyAmount amount={preview.imss.total_worker} size="sm" /></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <Button onClick={handleApproveAndSave} loading={saving} variant="secondary" className="flex-1 justify-center">
