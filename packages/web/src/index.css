@@ -14,4 +14,13 @@
   * {
     box-sizing: border-box;
   }
+  /* iOS/Safari give date & time inputs a UA-imposed min-width that overflows
+     narrow containers. Let them shrink to fit and never exceed their box. */
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="time"] {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
