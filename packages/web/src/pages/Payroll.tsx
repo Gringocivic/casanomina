@@ -38,35 +38,37 @@ function IMSSBreakdownTable({ imss, lang }: { imss: any; lang: "en" | "es" }) {
         {lang === "en" ? "Show IMSS branch detail" : "Ver detalle por ramo IMSS"}
       </button>
       {open && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-gray-400 border-b">
-              <th className="pb-2">{lang === "en" ? "Branch" : "Ramo"}</th>
-              <th className="pb-2 text-right">{lang === "en" ? "Employer" : "Patron"}</th>
-              <th className="pb-2 text-right">{lang === "en" ? "Worker" : "Trabajadora"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {branches.map(([key, label]) => (
-              <tr key={key} className="border-b border-gray-50 last:border-0">
-                <td className="py-1.5 text-gray-600">{label}</td>
-                <td className="py-1.5 text-right text-gray-800">
-                  <MoneyAmount amount={imss.branches[key]?.employer ?? 0} size="sm" />
-                </td>
-                <td className="py-1.5 text-right text-gray-800">
-                  <MoneyAmount amount={imss.branches[key]?.worker ?? 0} size="sm" />
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-gray-400 border-b">
+                <th className="pb-2 whitespace-nowrap">{lang === "en" ? "Branch" : "Ramo"}</th>
+                <th className="pb-2 text-right whitespace-nowrap">{lang === "en" ? "Employer" : "Patron"}</th>
+                <th className="pb-2 text-right whitespace-nowrap">{lang === "en" ? "Worker" : "Trabajadora"}</th>
               </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="font-semibold text-gray-900">
-              <td className="pt-2">{lang === "en" ? "Total IMSS" : "Total IMSS"}</td>
-              <td className="pt-2 text-right"><MoneyAmount amount={imss.total_employer} size="sm" /></td>
-              <td className="pt-2 text-right"><MoneyAmount amount={imss.total_worker} size="sm" /></td>
-            </tr>
-          </tfoot>
-        </table>
+            </thead>
+            <tbody>
+              {branches.map(([key, label]) => (
+                <tr key={key} className="border-b border-gray-50 last:border-0">
+                  <td className="py-1.5 text-gray-600 whitespace-nowrap">{label}</td>
+                  <td className="py-1.5 text-right text-gray-800 whitespace-nowrap">
+                    <MoneyAmount amount={imss.branches[key]?.employer ?? 0} size="sm" />
+                  </td>
+                  <td className="py-1.5 text-right text-gray-800 whitespace-nowrap">
+                    <MoneyAmount amount={imss.branches[key]?.worker ?? 0} size="sm" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="font-semibold text-gray-900">
+                <td className="pt-2 whitespace-nowrap">{lang === "en" ? "Total IMSS" : "Total IMSS"}</td>
+                <td className="pt-2 text-right whitespace-nowrap"><MoneyAmount amount={imss.total_employer} size="sm" /></td>
+                <td className="pt-2 text-right whitespace-nowrap"><MoneyAmount amount={imss.total_worker} size="sm" /></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -631,71 +633,73 @@ export function Payroll() {
             </div>
           ) : history && history.length > 0 ? (
             <Card className="overflow-hidden p-0">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="text-left text-xs font-medium text-gray-500 px-5 py-3">
-                      {lang === "en" ? "Period" : "Periodo"}
-                    </th>
-                    <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">
-                      {lang === "en" ? "Status" : "Estado"}
-                    </th>
-                    <th className="text-right text-xs font-medium text-gray-500 px-4 py-3">
-                      {lang === "en" ? "Net Pay" : "Neto"}
-                    </th>
-                    <th className="text-right text-xs font-medium text-gray-500 px-4 py-3">
-                      {lang === "en" ? "Employer Cost" : "Costo Patron"}
-                    </th>
-                    <th className="text-right text-xs font-medium text-gray-500 px-5 py-3">
-                      {lang === "en" ? "Actions" : "Acciones"}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 px-5">
-                  {history.map((run: any) => (
-                    <tr key={run.id} className="hover:bg-gray-50/50">
-                      <td className="py-3 px-5">
-                        <p className="text-sm font-medium text-gray-900">
-                          {run.period_start} → {run.period_end}
-                        </p>
-                        <p className="text-xs text-gray-400">{run.days_worked} {lang === "en" ? "days" : "días"}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={statusVariant(run.status)}>{statusLabel(run.status, lang)}</Badge>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <MoneyAmount amount={run.net_pay} size="sm" className="text-sage-700 font-semibold" />
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <MoneyAmount amount={run.employer_total_cost} size="sm" className="text-terracotta-600 font-semibold" />
-                      </td>
-                      <td className="py-3 px-5 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          {run.status === "approved" && (
-                            <button
-                              onClick={() => handleMarkPaid(run)}
-                              className="text-xs text-sage-600 hover:text-sage-700 font-medium flex items-center gap-1"
-                            >
-                              <DollarSign size={13} />
-                              {lang === "en" ? "Mark Paid" : "Marcar Pagado"}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDownloadPayslip(run)}
-                            disabled={downloadingId === run.id}
-                            className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 flex items-center gap-1"
-                          >
-                            {downloadingId === run.id
-                              ? <Loader2 size={13} className="animate-spin" />
-                              : <Download size={13} />}
-                            PDF
-                          </button>
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left text-xs font-medium text-gray-500 px-5 py-3 whitespace-nowrap">
+                        {lang === "en" ? "Period" : "Periodo"}
+                      </th>
+                      <th className="text-left text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">
+                        {lang === "en" ? "Status" : "Estado"}
+                      </th>
+                      <th className="text-right text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">
+                        {lang === "en" ? "Net Pay" : "Neto"}
+                      </th>
+                      <th className="text-right text-xs font-medium text-gray-500 px-4 py-3 whitespace-nowrap">
+                        {lang === "en" ? "Employer Cost" : "Costo Patron"}
+                      </th>
+                      <th className="text-right text-xs font-medium text-gray-500 px-5 py-3 whitespace-nowrap">
+                        {lang === "en" ? "Actions" : "Acciones"}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 px-5">
+                    {history.map((run: any) => (
+                      <tr key={run.id} className="hover:bg-gray-50/50">
+                        <td className="py-3 px-5 whitespace-nowrap">
+                          <p className="text-sm font-medium text-gray-900">
+                            {run.period_start} → {run.period_end}
+                          </p>
+                          <p className="text-xs text-gray-400">{run.days_worked} {lang === "en" ? "days" : "días"}</p>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <Badge variant={statusVariant(run.status)}>{statusLabel(run.status, lang)}</Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <MoneyAmount amount={run.net_pay} size="sm" className="text-sage-700 font-semibold" />
+                        </td>
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <MoneyAmount amount={run.employer_total_cost} size="sm" className="text-terracotta-600 font-semibold" />
+                        </td>
+                        <td className="py-3 px-5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-3">
+                            {run.status === "approved" && (
+                              <button
+                                onClick={() => handleMarkPaid(run)}
+                                className="text-xs text-sage-600 hover:text-sage-700 font-medium flex items-center gap-1"
+                              >
+                                <DollarSign size={13} />
+                                {lang === "en" ? "Mark Paid" : "Marcar Pagado"}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDownloadPayslip(run)}
+                              disabled={downloadingId === run.id}
+                              className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {downloadingId === run.id
+                                ? <Loader2 size={13} className="animate-spin" />
+                                : <Download size={13} />}
+                              PDF
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Card>
           ) : (
             <div className="text-center py-10 text-gray-400">
