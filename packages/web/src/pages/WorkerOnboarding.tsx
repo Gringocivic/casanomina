@@ -237,7 +237,7 @@ export function WorkerOnboarding() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-8 max-w-xl mx-auto">
+    <div className="p-4 md:p-8 max-w-xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => (step > 1 ? setStep(step - 1) : navigate("/workers"))} className="text-gray-400 hover:text-gray-600">
@@ -281,7 +281,7 @@ export function WorkerOnboarding() {
                 autoFocus
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Role" : "Puesto"}</label>
                 <select
@@ -410,7 +410,7 @@ export function WorkerOnboarding() {
           </div>
           <div className="space-y-4">
             {/* Salary + zone */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Daily Salary (MXN) *" : "Salario Diario (MXN) *"}</label>
                 <input
@@ -437,7 +437,7 @@ export function WorkerOnboarding() {
             </div>
 
             {/* Frequency + days */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Pay Frequency" : "Frecuencia de Pago"}</label>
                 <select className={fieldClass} value={terms.pay_frequency} onChange={(e) => {
@@ -537,7 +537,7 @@ export function WorkerOnboarding() {
               <label className={labelClass}>
                 {lang === "en" ? "Accommodation" : "Alojamiento"}
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setTerms({ ...terms, live_in: false })}

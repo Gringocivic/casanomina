@@ -55,7 +55,7 @@ export function Calculators() {
   ];
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-1">
           <Calculator size={20} className="text-terracotta-500" />
@@ -92,7 +92,7 @@ export function Calculators() {
           </div>
 
           {activeCalc !== "imss" && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   {lang === "en" ? "Hire Date" : "Fecha de Contratación"}

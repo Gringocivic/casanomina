@@ -360,7 +360,7 @@ export function LawsAndRights() {
     : Object.values(STATIC_CONTENT).map((c) => c[lang]);
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 md:p-8 max-w-3xl">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <BookOpen size={20} className="text-terracotta-500" />

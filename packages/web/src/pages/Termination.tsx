@@ -147,7 +147,7 @@ export function Termination() {
 
   if (workerLoading) {
     return (
-      <div className="p-8 max-w-2xl">
+      <div className="p-4 md:p-8 max-w-2xl">
         <div className="space-y-3">
           {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />)}
         </div>
@@ -157,7 +157,7 @@ export function Termination() {
 
   if (!worker) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <p className="text-gray-500">{T.notFound[lang]}</p>
         <Link to="/workers" className="text-terracotta-600 text-sm font-medium mt-2 inline-block hover:underline">
           ← {T.back[lang]}
@@ -167,7 +167,7 @@ export function Termination() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       {/* Back */}
       <Link to="/workers" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors">
         <ArrowLeft size={15} />
