@@ -160,7 +160,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       {/* Main content */}
-      <main className="ml-0 md:ml-64 flex-1 min-h-screen pt-14 md:pt-0">
+      <main className="ml-0 md:ml-64 flex-1 min-w-0 min-h-screen pt-14 md:pt-0">
         {children}
       </main>
     </div>

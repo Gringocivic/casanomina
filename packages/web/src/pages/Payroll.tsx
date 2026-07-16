@@ -50,7 +50,7 @@ function IMSSBreakdownTable({ imss, lang }: { imss: any; lang: "en" | "es" }) {
             <tbody>
               {branches.map(([key, label]) => (
                 <tr key={key} className="border-b border-gray-50 last:border-0">
-                  <td className="py-1.5 text-gray-600 whitespace-nowrap">{label}</td>
+                  <td className="py-1.5 pr-3 text-gray-600">{label}</td>
                   <td className="py-1.5 text-right text-gray-800 whitespace-nowrap">
                     <MoneyAmount amount={imss.branches[key]?.employer ?? 0} size="sm" />
                   </td>
