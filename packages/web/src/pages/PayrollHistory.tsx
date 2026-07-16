@@ -147,7 +147,7 @@ export function PayrollHistory() {
   });
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 md:p-8 max-w-5xl">
       <div className="mb-8 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <History size={20} className="text-terracotta-500" />
@@ -174,7 +174,7 @@ export function PayrollHistory() {
 
       {/* Summary stats */}
       {!loading && allRuns.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <Card className="flex items-center gap-4 py-4">
             <div className="w-10 h-10 bg-sage-50 rounded-xl flex items-center justify-center shrink-0">
               <Users size={18} className="text-sage-600" />

@@ -210,7 +210,7 @@ export function WorkerProfile() {
   const belowMin = Number(form.daily_salary) < minForZone;
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 md:p-8 max-w-2xl">
       <div className="flex items-center gap-4 mb-8">
         <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600">
           <ArrowLeft size={20} />
@@ -245,7 +245,7 @@ export function WorkerProfile() {
               <label className={labelClass}>{lang === "en" ? "Full Name *" : "Nombre Completo *"}</label>
               <input className={fieldClass} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Maria Garcia Lopez" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Role" : "Puesto"}</label>
                 <select
@@ -359,7 +359,7 @@ export function WorkerProfile() {
             </h2>
           </div>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>
                   {lang === "en" ? "Daily Salary (MXN) *" : "Salario Diario (MXN) *"}
@@ -388,7 +388,7 @@ export function WorkerProfile() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{lang === "en" ? "Pay Frequency" : "Frecuencia de Pago"}</label>
                 <select className={fieldClass} value={form.pay_frequency} onChange={(e) => set("pay_frequency", e.target.value)}>
@@ -410,7 +410,7 @@ export function WorkerProfile() {
               <label className={labelClass}>
                 {lang === "en" ? "Accommodation" : "Alojamiento"}
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => set("live_in", false)}
@@ -674,7 +674,7 @@ export function WorkerProfile() {
                   {lang === "en" ? "Vacation Days" : "Días de Vacaciones"}
                 </h2>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-3 bg-purple-50 rounded-xl text-center">
                   <p className="text-2xl font-bold text-purple-700">{earned}</p>
                   <p className="text-xs text-purple-600 mt-0.5">{lang === "en" ? "Earned this year" : "Ganados este año"}</p>
