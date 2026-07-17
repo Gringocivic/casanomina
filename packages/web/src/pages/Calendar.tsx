@@ -391,18 +391,16 @@ export function Calendar() {
           ) : (
             <div className="space-y-2">
               {selectedEvents.map((e, i) => (
-                <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${CHIP[e.type]}`}>
-                  <div>
-                    <span className="font-medium">{e.title}</span>
+                <div key={i} className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 px-3 py-2 rounded-lg border text-sm ${CHIP[e.type]}`}>
+                  <div className="min-w-0">
+                    <span className="font-medium break-words">{e.title}</span>
                     {e.subtitle && <span className="ml-2 opacity-70 text-xs">{e.subtitle}</span>}
                   </div>
-                  {(e.type === "imss" || e.type === "isr" || e.type === "aguinaldo") && (
-                    <a href={googleUrl(e)} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 ml-4 shrink-0">
-                      <ExternalLink size={11} />
-                      {lang === "en" ? "Add to Google" : "Añadir a Google"}
-                    </a>
-                  )}
+                  <a href={googleUrl(e)} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs opacity-60 hover:opacity-100 shrink-0 self-start sm:self-auto sm:ml-4">
+                    <ExternalLink size={11} />
+                    {lang === "en" ? "Add to Google" : "Añadir a Google"}
+                  </a>
                 </div>
               ))}
             </div>
