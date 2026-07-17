@@ -1104,14 +1104,14 @@ function UnpaidApprovedRuns({ runs, lang, onChanged }: { runs: any[]; lang: "en"
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
       <div className="space-y-2">
         {runs.map((r) => (
-          <div key={r.id} className="flex items-center justify-between gap-3 bg-white border border-blue-100 rounded-xl px-3 py-2">
+          <div key={r.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 bg-white border border-blue-100 rounded-xl px-3 py-2">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{r.worker_name}</p>
               <p className="text-xs text-gray-500">
                 {fmtShortDate(isoToDate(r.period_start), lang)} – {fmtShortDate(isoToDate(r.period_end), lang)}
               </p>
             </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-3 flex-shrink-0 justify-between sm:justify-normal">
               <MoneyAmount amount={r.net_pay} size="sm" className="text-gray-900 font-semibold" />
               <Button size="sm" variant="secondary" loading={payingId === r.id} onClick={() => markPaid(r.id)}>
                 <CheckCircle2 size={14} />
